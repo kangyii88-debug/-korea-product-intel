@@ -1,0 +1,18 @@
+{
+  "framework": "nextjs",
+  "regions": ["icn1"],
+  "crons": [
+    {
+      "path": "/api/market/intelligence",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/decisions/engine",
+      "schedule": "10 0 * * *"
+    },
+    {
+      "path": "/api/opportunities",
+      "schedule": "20 0 * * *"
+    }
+  ]
+}
