@@ -1,30 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createClient, hasSupabasePublicEnv } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({
   supabaseUrl,
   supabaseAnonKey,
-  envDebug,
 }: {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
-  envDebug: {
-    urlExists: boolean;
-    keyExists: boolean;
-    urlLength: number;
-    keyLength: number;
-  };
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
-  const publicEnv = hasSupabasePublicEnv();
-  const hasSupabaseUrl = Boolean(supabaseUrl) || publicEnv.hasUrl;
-  const hasSupabaseAnonKey = Boolean(supabaseAnonKey) || publicEnv.hasAnonKey;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -40,7 +31,7 @@ export function LoginForm({
 
     const supabase = createClient({ url: supabaseUrl, anonKey: supabaseAnonKey });
     if (!supabase) {
-      setMessage("Supabase client 创建失败。请查看下方 env 诊断值。");
+      setMessage("Supabase 连接未配置，请先使用免密码预览入口。");
       setLoading(false);
       return;
     }
@@ -49,7 +40,7 @@ export function LoginForm({
       const result = await supabase.auth.signInWithPassword({ email, password });
 
       if (result.error) {
-        setMessage("登录失败：账号不存在或密码不正确。请先点击下方“没有账号？创建一个”，或检查邮箱和密码。");
+        setMessage("登录失败：账号不存在或密码不正确。你可以先创建账号，或使用免密码预览入口。");
         setLoading(false);
         return;
       }
@@ -85,9 +76,9 @@ export function LoginForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div>
-        <label className="text-sm font-medium" htmlFor="email">
+    <form onSubmit={submit} className="space-y-5">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-800" htmlFor="email">
           邮箱
         </label>
         <input
@@ -96,12 +87,13 @@ export function LoginForm({
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="mt-2 h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
           placeholder="you@company.com"
         />
       </div>
-      <div>
-        <label className="text-sm font-medium" htmlFor="password">
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-800" htmlFor="password">
           密码
         </label>
         <input
@@ -111,49 +103,57 @@ export function LoginForm({
           minLength={6}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 h-10 w-full rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
           placeholder="至少 6 位"
         />
       </div>
+
       {message ? (
         <p
           className={
             messageTone === "success"
-              ? "rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
-              : "rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+              ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800"
+              : "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800"
           }
         >
           {message}
         </p>
       ) : null}
-      <div className="space-y-1 rounded-md border bg-muted p-3 font-mono text-xs text-muted-foreground">
-        <p>URL_EXISTS: {String(envDebug.urlExists)}</p>
-        <p>KEY_EXISTS: {String(envDebug.keyExists)}</p>
-        <p>URL_LENGTH: {envDebug.urlLength}</p>
-        <p>KEY_LENGTH: {envDebug.keyLength}</p>
-        <p>CLIENT_URL_EXISTS: {String(hasSupabaseUrl)}</p>
-        <p>CLIENT_KEY_EXISTS: {String(hasSupabaseAnonKey)}</p>
+
+      <div className="space-y-3">
+        <Button className="h-11 w-full rounded-lg" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              处理中
+            </>
+          ) : mode === "signin" ? (
+            "登录"
+          ) : (
+            "创建账号"
+          )}
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full rounded-lg border-slate-200 bg-white"
+          onClick={() => {
+            window.location.href = `/api/auth/demo?next=${encodeURIComponent(next)}`;
+          }}
+        >
+          免密码进入系统
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
       </div>
-      <Button className="w-full" disabled={loading}>
-        {loading ? "处理中..." : mode === "signin" ? "登录" : "创建账号"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={() => {
-          window.location.href = `/api/auth/demo?next=${encodeURIComponent(next)}`;
-        }}
-      >
-        免密码进入系统
-      </Button>
+
       <button
         type="button"
         onClick={() => {
           setMode(mode === "signin" ? "signup" : "signin");
           setMessage("");
         }}
-        className="w-full text-sm text-muted-foreground hover:text-foreground"
+        className="w-full text-sm text-slate-500 transition hover:text-slate-950"
       >
         {mode === "signin" ? "没有账号？创建一个" : "已有账号？返回登录"}
       </button>
