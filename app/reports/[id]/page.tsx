@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/app-shell";
-import { PageHeader } from "@/components/page-header";
 import { LocalReportView } from "@/components/local-report-view";
+import { PageHeader } from "@/components/page-header";
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,8 +9,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     <AppShell>
       <PageHeader
         eyebrow="AI Product Report"
-        title="单品 AI 情报报告"
-        description="基于你录入的真实商品信息、评论和价格数据，生成可执行的选品判断。"
+        title="商品机会决策详情"
+        description="查看单个商品的总分、利润安全线、风险红线、RG/PB 分流结果、自动任务和转项目前资料检查。"
       />
       <LocalReportView productId={id} />
     </AppShell>

@@ -1,24 +1,23 @@
 import { NextResponse } from "next/server";
-import { mockReviews, products } from "@/lib/mock-data";
-import { generateOpportunityCenter } from "@/lib/opportunity-engine";
-import { saveOpportunityCenterResult } from "@/lib/opportunity-store";
+
+const emptyResult = {
+  ok: true,
+  result: {
+    generatedAt: new Date().toISOString(),
+    pools: {
+      growth: [],
+      optimization: [],
+      supplyChain: [],
+      innovation: [],
+    },
+    reports: [],
+  },
+};
 
 export async function GET() {
-  const result = generateOpportunityCenter(products, mockReviews);
-  await saveOpportunityCenterResult(result);
-
-  return NextResponse.json({
-    ok: true,
-    result,
-  });
+  return NextResponse.json(emptyResult);
 }
 
 export async function POST() {
-  const result = generateOpportunityCenter(products, mockReviews);
-  await saveOpportunityCenterResult(result);
-
-  return NextResponse.json({
-    ok: true,
-    result,
-  });
+  return NextResponse.json(emptyResult);
 }

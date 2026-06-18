@@ -8,7 +8,7 @@ export default function PerplexityPage() {
       <PageHeader
         eyebrow="Perplexity Intelligence Center"
         title="Perplexity 情报中心"
-        description="用于补充市场研究、趋势发现、竞品分析和新品机会发现，服务 Rocket Growth 与 PB 项目筛选。"
+        description="这里预留未来接入 Perplexity API 后的市场研究、趋势发现、竞品分析和新品机会发现能力。第一版保持空状态或待机状态，不自动生成任何假报告。"
       />
       <PerplexityIntelligenceClient />
     </AppShell>

@@ -1,86 +1,93 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { products, reports } from "@/lib/mock-data";
+import { analyzeProduct, loadLocalProducts, type LocalProduct } from "@/lib/local-products";
 import { formatNumber } from "@/lib/utils";
 
-const reviewThemes = [
-  { theme: "尺寸预期不一致", count: 214, impact: "导致退货", action: "主图增加真人/场景尺寸参照" },
-  { theme: "包装破损", count: 168, impact: "影响评分", action: "外箱加厚并加入跌落测试要求" },
-  { theme: "功能描述不清", count: 121, impact: "拉低转化", action: "详情页用对比图说明边界条件" },
-  { theme: "耐用性担忧", count: 97, impact: "售后风险", action: "采购前要求供应商提供循环测试数据" },
-];
-
 export default function ReviewsPage() {
-  const totalReviews = products.reduce((sum, product) => sum + product.reviewCount, 0);
-  const dislikes = Object.values(reports).flatMap((report) => report.reviewAnalysis.dislikes);
-  const returnReasons = Object.values(reports).flatMap((report) => report.reviewAnalysis.returnReasons);
+  const [products, setProducts] = useState<LocalProduct[]>([]);
+
+  useEffect(() => {
+    setProducts(loadLocalProducts());
+  }, []);
+
+  const reviewState = useMemo(() => {
+    const analyzed = products.map((product) => ({ product, analysis: analyzeProduct(product) }));
+    const totalReviews = analyzed.reduce((sum, item) => sum + item.product.reviewCount, 0);
+    const issueRows = analyzed.flatMap((item) => item.analysis.negativeIssues);
+    const uniqueIssues = new Set(issueRows.map((item) => item.label));
+    const trackedReasons = issueRows.length;
+    const optimizable = issueRows.filter((item) => item.count > 0).length;
+
+    return {
+      totalReviews,
+      highFrequencyIssues: uniqueIssues.size,
+      trackedReasons,
+      optimizable,
+      issueRows,
+    };
+  }, [products]);
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Module 03"
-        title="评论差评分析中心"
-        description="把评论拆成喜欢点、讨厌点、购买原因、退货原因，直接反推产品升级、详情页修正和售后风险。"
+        eyebrow="Review Analysis"
+        title="评论差评分析"
+        description="聚焦尺寸、包装、外观、气味、物流、质量稳定性等负面主题，判断商品是否存在可改进机会。"
       />
       <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:px-8">
         <div className="grid gap-4 md:grid-cols-4">
-          <MetricCard label="评论样本" value={formatNumber(totalReviews)} note="来自当前采集库商品" />
-          <MetricCard label="高频差评点" value={`${dislikes.length}`} note="用于生成开发约束" tone="warn" />
-          <MetricCard label="退货原因" value={`${returnReasons.length}`} note="用于提前降低售后成本" tone="warn" />
-          <MetricCard label="可转化优化项" value="12" note="主图、详情页、包装、规格说明" tone="good" />
+          <MetricCard label="评论样本" value={formatNumber(reviewState.totalReviews)} note="真实评论样本总量" />
+          <MetricCard label="高频差评点" value={`${reviewState.highFrequencyIssues}`} note="已识别差评主题数" tone="warn" />
+          <MetricCard label="追踪原因" value={`${reviewState.trackedReasons}`} note="已追踪负面原因条数" tone="warn" />
+          <MetricCard label="可转化优化项" value={`${reviewState.optimizable}`} note="可进入优化动作的项数" tone="good" />
         </div>
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        {products.length === 0 ? (
           <Card>
             <CardHeader>
-              <h2 className="text-base font-semibold">差评主题优先级</h2>
+              <h2 className="text-base font-semibold">当前还没有评论数据</h2>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm leading-6 text-muted-foreground">
+              <p>所有统计现在都应为 0，不会显示任何示例差评点或示例主题。</p>
+              <Link href="/products/new">
+                <Button>新增测试商品</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : reviewState.issueRows.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <h2 className="text-base font-semibold">当前没有可分析的差评主题</h2>
+            </CardHeader>
+            <CardContent className="text-sm leading-6 text-muted-foreground">
+              当前商品还没有足够的评论样本或负面主题，后续录入真实评论后这里会自动更新。
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <h2 className="text-base font-semibold">真实差评主题</h2>
             </CardHeader>
             <CardContent className="space-y-3">
-              {reviewThemes.map((item) => (
-                <div key={item.theme} className="grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_120px_120px_1.2fr] md:items-center">
-                  <div>
-                    <p className="font-medium">{item.theme}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">出现 {item.count} 次</p>
+              {reviewState.issueRows.map((item, index) => (
+                <div key={`${item.label}-${index}`} className="rounded-xl border border-stone-200 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium">{item.label}</p>
+                    <span className="text-sm text-muted-foreground">{item.count} 条</span>
                   </div>
-                  <Badge>{item.impact}</Badge>
-                  <div className="h-2 rounded-full bg-muted">
-                    <div className="h-2 rounded-full bg-amber-500" style={{ width: `${Math.min(item.count / 2.4, 100)}%` }} />
-                  </div>
-                  <p className="text-sm leading-6 text-muted-foreground">{item.action}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{item.suggestion}</p>
                 </div>
               ))}
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <h2 className="text-base font-semibold">AI 归因</h2>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md border p-4">
-                <p className="text-sm font-medium">用户真正喜欢</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  不是便宜本身，而是“省空间、省时间、少麻烦”的明确收益。详情页要把收益放在参数前。
-                </p>
-              </div>
-              <div className="rounded-md border p-4">
-                <p className="text-sm font-medium">用户真正讨厌</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  预期落差。尺寸、承重、材质、包装只要说不清，都会变成退货和低分。
-                </p>
-              </div>
-              <div className="rounded-md border p-4">
-                <p className="text-sm font-medium">下一步动作</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  把高频差评转成供应商验货表和详情页 FAQ，再决定是否进入小批量测试。
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+        )}
       </div>
     </AppShell>
   );

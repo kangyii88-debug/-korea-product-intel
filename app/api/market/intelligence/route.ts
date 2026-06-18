@@ -1,24 +1,44 @@
 import { NextResponse } from "next/server";
-import { mockReviews, products } from "@/lib/mock-data";
-import { generateMarketIntelligence } from "@/lib/market-intelligence-engine";
-import { saveMarketIntelligenceResult } from "@/lib/market-intelligence-store";
+
+const emptyResult = {
+  ok: true,
+  result: {
+    generatedAt: new Date().toISOString(),
+    snapshots: [],
+    trendCenter: {
+      fastestGrowing7Days: [],
+      fastestGrowing30Days: [],
+      fastestGrowing90Days: [],
+    },
+    opportunityRadar: {
+      newOpportunities: [],
+      newTrends: [],
+      newCategories: [],
+      growingCategories: [],
+      decliningCategories: [],
+    },
+    curtainTrendCenter: {
+      hotSizeTrends: [],
+      hotColorTrends: [],
+      hotMaterialTrends: [],
+      hotPriceTrends: [],
+    },
+    competitorIntelligence: {
+      growingBrands: [],
+      decliningBrands: [],
+      reviewGrowthLeaders: [],
+      rankingMovers: [],
+      priceMovers: [],
+    },
+    alerts: [],
+    executiveBrief: [],
+  },
+};
 
 export async function GET() {
-  const result = generateMarketIntelligence(products, mockReviews);
-  await saveMarketIntelligenceResult(result);
-
-  return NextResponse.json({
-    ok: true,
-    result,
-  });
+  return NextResponse.json(emptyResult);
 }
 
 export async function POST() {
-  const result = generateMarketIntelligence(products, mockReviews);
-  await saveMarketIntelligenceResult(result);
-
-  return NextResponse.json({
-    ok: true,
-    result,
-  });
+  return NextResponse.json(emptyResult);
 }

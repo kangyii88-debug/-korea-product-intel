@@ -536,10 +536,10 @@ create table if not exists market_reports (
   output_json jsonb default '{}',
   output_markdown text,
   output_csv text,
-  source_mode text default 'mock',
+  source_mode text default 'standby',
   provider text default 'perplexity',
   model_name text,
-  status text default 'mock_ready',
+  status text default 'standby',
   generated_at timestamptz default now(),
   created_at timestamptz default now()
 );
@@ -554,10 +554,10 @@ create table if not exists trend_reports (
   output_json jsonb default '{}',
   output_markdown text,
   output_csv text,
-  source_mode text default 'mock',
+  source_mode text default 'standby',
   provider text default 'perplexity',
   model_name text,
-  status text default 'mock_ready',
+  status text default 'standby',
   generated_at timestamptz default now(),
   created_at timestamptz default now()
 );
@@ -572,10 +572,10 @@ create table if not exists competitor_reports (
   output_json jsonb default '{}',
   output_markdown text,
   output_csv text,
-  source_mode text default 'mock',
+  source_mode text default 'standby',
   provider text default 'perplexity',
   model_name text,
-  status text default 'mock_ready',
+  status text default 'standby',
   generated_at timestamptz default now(),
   created_at timestamptz default now()
 );
@@ -590,10 +590,10 @@ create table if not exists opportunity_reports (
   output_json jsonb default '{}',
   output_markdown text,
   output_csv text,
-  source_mode text default 'mock',
+  source_mode text default 'standby',
   provider text default 'perplexity',
   model_name text,
-  status text default 'mock_ready',
+  status text default 'standby',
   generated_at timestamptz default now(),
   created_at timestamptz default now()
 );

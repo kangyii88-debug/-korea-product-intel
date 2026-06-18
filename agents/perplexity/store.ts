@@ -32,7 +32,7 @@ export async function savePerplexityReport(report: PerplexityReportPayload, bund
     source_mode: report.metadata.sourceMode,
     provider: report.provider,
     model_name: report.model,
-    status: "mock_ready",
+    status: "standby",
     generated_at: report.generatedAt,
   });
 

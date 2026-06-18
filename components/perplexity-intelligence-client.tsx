@@ -63,7 +63,7 @@ export function PerplexityIntelligenceClient() {
               <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">保存表：`{item.table}`</p>
+              <p className="text-xs text-muted-foreground">预留落库表：`{item.table}`</p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => run(item.id, "json")} disabled={state.loading}>
                   JSON
@@ -82,13 +82,13 @@ export function PerplexityIntelligenceClient() {
 
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">Perplexity Module Preview</h2>
+          <h2 className="text-base font-semibold">Perplexity Module Status</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            当前为 mock 模式，API、数据库和输出格式已按真实 Perplexity 接入方向预留。
+            当前模块保留接口、表结构和输出格式，但默认不生成测试情报数据，等待后续接入真实 Perplexity API。
           </p>
         </CardHeader>
         <CardContent>
-          {state.loading ? <p className="text-sm text-muted-foreground">Generating mock intelligence...</p> : null}
+          {state.loading ? <p className="text-sm text-muted-foreground">Preparing standby response...</p> : null}
           {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
           {!state.loading && !state.error && state.payload ? (
             <pre className="max-h-[560px] overflow-auto rounded-md border bg-slate-50 p-4 text-xs leading-6">
@@ -96,7 +96,7 @@ export function PerplexityIntelligenceClient() {
             </pre>
           ) : null}
           {!state.loading && !state.error && !state.payload ? (
-            <p className="text-sm text-muted-foreground">选择一个功能和输出格式后，这里会显示模拟结果预览。</p>
+            <p className="text-sm text-muted-foreground">当前没有任何测试情报数据。接入真实 API 后，这里会显示真实输出结果。</p>
           ) : null}
         </CardContent>
       </Card>

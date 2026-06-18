@@ -1,5 +1,5 @@
-import type { RecommendationDirection } from "@/lib/business-positioning";
 import { getDirectionTone } from "@/lib/business-positioning";
+import type { RecommendationDirection } from "@/lib/local-products";
 
 export function DecisionPill({ decision }: { decision: RecommendationDirection }) {
   return (

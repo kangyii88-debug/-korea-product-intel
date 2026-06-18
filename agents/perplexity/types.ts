@@ -12,7 +12,7 @@ export type PerplexityReportTable =
   | "competitor_reports"
   | "opportunity_reports";
 
-export type PerplexityMockInsight = {
+export type PerplexityInsight = {
   title: string;
   summary: string;
   evidence: string[];
@@ -26,15 +26,15 @@ export type PerplexityReportPayload = {
   title: string;
   query: string;
   generatedAt: string;
-  provider: "mock-perplexity";
-  model: "sonar-pro-placeholder";
+  provider: "perplexity-standby";
+  model: "pending-live-api";
   summary: string;
   highlights: string[];
-  insights: PerplexityMockInsight[];
+  insights: PerplexityInsight[];
   nextSteps: string[];
   metadata: {
     outputTable: PerplexityReportTable;
-    sourceMode: "mock";
+    sourceMode: "standby";
     futureApiReady: true;
   };
 };

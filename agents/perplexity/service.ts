@@ -1,19 +1,21 @@
 import { buildBundle } from "@/agents/perplexity/formatters";
-import { buildMockPerplexityReport } from "@/agents/perplexity/mock-data";
-import { savePerplexityReport } from "@/agents/perplexity/store";
+import { buildEmptyPerplexityReport } from "@/agents/perplexity/standby-data";
 import type { PerplexityCapability, PerplexityOutputFormat } from "@/agents/perplexity/types";
 
 export async function runPerplexityCapability(capability: PerplexityCapability, format: PerplexityOutputFormat = "json") {
-  const report = buildMockPerplexityReport(capability);
+  const report = buildEmptyPerplexityReport(capability);
   const bundle = buildBundle(report);
-  const persisted = await savePerplexityReport(report, bundle);
 
   return {
     ok: true,
     capability,
     format,
-    mode: "mock",
-    persisted,
+    mode: "standby",
+    persisted: {
+      saved: false,
+      table: report.metadata.outputTable,
+      reason: "standby_mode",
+    },
     output: bundle[format],
     bundle,
     report,
