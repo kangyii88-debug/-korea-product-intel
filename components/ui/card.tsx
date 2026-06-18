@@ -7,7 +7,16 @@ export function Card({
   className?: string;
   children: React.ReactNode;
 }) {
-  return <section className={cn("rounded-lg border bg-card shadow-sm", className)}>{children}</section>;
+  return (
+    <section
+      className={cn(
+        "rounded-[18px] border border-slate-200 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.03)]",
+        className,
+      )}
+    >
+      {children}
+    </section>
+  );
 }
 
 export function CardHeader({
@@ -17,7 +26,7 @@ export function CardHeader({
   className?: string;
   children: React.ReactNode;
 }) {
-  return <div className={cn("border-b px-5 py-4", className)}>{children}</div>;
+  return <div className={cn("border-b border-slate-200 px-6 py-5", className)}>{children}</div>;
 }
 
 export function CardContent({
@@ -27,5 +36,5 @@ export function CardContent({
   className?: string;
   children: React.ReactNode;
 }) {
-  return <div className={cn("p-5", className)}>{children}</div>;
+  return <div className={cn("p-6", className)}>{children}</div>;
 }

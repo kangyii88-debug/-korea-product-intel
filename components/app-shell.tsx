@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BrainCircuit,
@@ -14,147 +15,150 @@ import {
   PackageSearch,
   Radar,
   SearchCheck,
-  Settings2,
   ShieldAlert,
   TrendingUp,
 } from "lucide-react";
-import { LocaleProvider, useLocale } from "@/components/locale-provider";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Badge } from "@/components/ui/badge";
+import { AIProviderCard } from "@/components/ai-provider-card";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLocale } from "@/components/locale-provider";
+import { getDictionary } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
-const navigationCopy = {
-  zh: {
-    title: "Coupang 商品情报系统",
-    subtitle: "Coupang 商品情报与 B2B 项目筛选系统。只负责发现、分析、判断和分流商品机会，不负责 4locks ERP 或自有品牌管理。",
-    signOut: "退出登录",
-    provider: "AI Provider",
-    items: [
-      { href: "/", label: "选品情报看板", icon: TrendingUp },
-      { href: "/opportunities", label: "商品机会池", icon: PackageSearch },
-      { href: "/competitors", label: "Coupang 竞品采集库", icon: SearchCheck },
-      { href: "/reviews", label: "评论差评分析", icon: MessageSquareWarning },
-      { href: "/pricing-profit", label: "价格与供货利润测算", icon: Calculator },
-      { href: "/risk-logistics", label: "认证 / 物流风险判断", icon: ShieldAlert },
-      { href: "/testing-db", label: "商品测试数据库", icon: FlaskConical },
-      { href: "/development", label: "产品开发建议", icon: Lightbulb },
-      { href: "/rocket-growth", label: "Rocket Growth 候选品", icon: BarChart3 },
-      { href: "/pb", label: "PB 候选品", icon: Boxes },
-      { href: "/decisions", label: "AI 决策中心", icon: ClipboardCheck },
-      { href: "/perplexity", label: "Perplexity 情报中心", icon: BrainCircuit },
-      { href: "/actions", label: "执行动作清单", icon: Radar },
-    ],
-  },
-  ko: {
-    title: "Coupang 상품 인텔 시스템",
-    subtitle: "Coupang 상품 인텔리전스 및 B2B 프로젝트 선별 시스템입니다. 4locks ERP나 자사 브랜드 관리는 포함하지 않고, Rocket Growth와 PB용 상품 기회 선별만 담당합니다.",
-    signOut: "로그아웃",
-    provider: "AI Provider",
-    items: [
-      { href: "/", label: "선정 인텔 대시보드", icon: TrendingUp },
-      { href: "/opportunities", label: "상품 기회 풀", icon: PackageSearch },
-      { href: "/competitors", label: "Coupang 경쟁상품 수집库", icon: SearchCheck },
-      { href: "/reviews", label: "리뷰/불만 분석", icon: MessageSquareWarning },
-      { href: "/pricing-profit", label: "가격 및 공급 마진 분석", icon: Calculator },
-      { href: "/risk-logistics", label: "인증 / 물류 리스크 판단", icon: ShieldAlert },
-      { href: "/testing-db", label: "상품 테스트 데이터베이스", icon: FlaskConical },
-      { href: "/development", label: "제품 개발 제안", icon: Lightbulb },
-      { href: "/rocket-growth", label: "Rocket Growth 후보품", icon: BarChart3 },
-      { href: "/pb", label: "PB 후보품", icon: Boxes },
-      { href: "/decisions", label: "AI 의사결정 센터", icon: ClipboardCheck },
-      { href: "/perplexity", label: "Perplexity 인텔 센터", icon: BrainCircuit },
-      { href: "/actions", label: "실행 액션 리스트", icon: Radar },
-    ],
-  },
-} as const;
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  return (
-    <LocaleProvider>
-      <AppShellContent>{children}</AppShellContent>
-    </LocaleProvider>
-  );
+  return <AppShellContent>{children}</AppShellContent>;
 }
 
 function AppShellContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { locale } = useLocale();
-  const copy = navigationCopy[locale];
+  const t = getDictionary(locale);
+
+  const groups: Array<{ label: string; items: NavItem[] }> = [
+    {
+      label: t.nav.groups.intelligence,
+      items: [
+        { href: "/", label: t.nav.items.dashboard, icon: TrendingUp },
+        { href: "/opportunities", label: t.nav.items.opportunities, icon: PackageSearch },
+        { href: "/competitors", label: t.nav.items.competitors, icon: SearchCheck },
+        { href: "/reviews", label: t.nav.items.reviews, icon: MessageSquareWarning },
+        { href: "/pricing-profit", label: t.nav.items.pricing, icon: Calculator },
+        { href: "/risk-logistics", label: t.nav.items.risks, icon: ShieldAlert },
+      ],
+    },
+    {
+      label: t.nav.groups.workspace,
+      items: [
+        { href: "/testing-db", label: t.nav.items.testingDb, icon: FlaskConical },
+        { href: "/development", label: t.nav.items.development, icon: Lightbulb },
+        { href: "/rocket-growth", label: t.nav.items.rocketGrowth, icon: BarChart3 },
+        { href: "/pb", label: t.nav.items.pb, icon: Boxes },
+        { href: "/decisions", label: t.nav.items.decisions, icon: ClipboardCheck },
+        { href: "/perplexity", label: t.nav.items.perplexity, icon: BrainCircuit },
+        { href: "/actions", label: t.nav.items.actions, icon: Radar },
+      ],
+    },
+  ];
+
+  const mobileItems = groups.flatMap((group) => group.items);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f8f4_0%,#f3f2ea_30%,#f7f7f2_100%)] text-slate-900">
-      <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Boxes className="h-5 w-5" />
-            {copy.title}
+    <div className="min-h-screen bg-[#f7f8fa] text-slate-900">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-[#f7f8fa]/95 backdrop-blur lg:hidden">
+        <div className="px-4 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{t.nav.title}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{t.nav.subtitle}</p>
+            </div>
+            <LanguageToggle />
           </div>
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher />
+          <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
+            {mobileItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors",
+                  pathname === item.href
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                <item.icon className="h-3.5 w-3.5" />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      <aside className="fixed left-0 top-0 hidden h-screen w-[264px] border-r border-slate-200 bg-[#fafafa] px-4 py-5 lg:block">
+        <div className="flex h-full flex-col">
+          <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                  <Boxes className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold tracking-[-0.02em] text-slate-950">{t.nav.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{t.nav.subtitle}</p>
+                </div>
+              </div>
+              <LanguageToggle />
+            </div>
+          </div>
+
+          <div className="mt-6 flex-1 overflow-y-auto pr-1">
+            {groups.map((group) => (
+              <div key={group.label} className="mb-6">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                  {group.label}
+                </p>
+                <nav className="mt-3 space-y-1.5">
+                  {group.items.map((item) => {
+                    const active = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
+                          active ? "bg-slate-100 text-slate-950" : "text-slate-600 hover:bg-white hover:text-slate-950",
+                        )}
+                      >
+                        <item.icon className={cn("h-4 w-4 shrink-0", active ? "text-slate-950" : "text-slate-400")} />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3 pt-4">
+            <AIProviderCard />
             <a
               href="/api/auth/signout"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground"
-              aria-label={copy.signOut}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950"
             >
               <LogOut className="h-4 w-4" />
+              {t.common.signOut}
             </a>
           </div>
         </div>
-        <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {copy.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="inline-flex shrink-0 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs text-muted-foreground"
-            >
-              <item.icon className="h-3.5 w-3.5" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-
-      <aside className="fixed left-0 top-0 hidden h-screen w-72 border-r border-stone-200 bg-[#fcfcf8] px-4 py-5 lg:block">
-        <div className="mb-8 px-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Boxes className="h-5 w-5" />
-              {copy.title}
-            </div>
-            <LocaleSwitcher />
-          </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">{copy.subtitle}</p>
-        </div>
-        <nav className="space-y-1">
-          {copy.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-stone-100 hover:text-foreground"
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="absolute bottom-5 left-4 right-4 rounded-lg border border-stone-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Settings2 className="h-4 w-4" />
-            {copy.provider}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {["OpenAI", "Claude", "Gemini", "Perplexity", "Grok"].map((item) => (
-              <Badge key={item}>{item}</Badge>
-            ))}
-          </div>
-          <a
-            href="/api/auth/signout"
-            className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            {copy.signOut}
-          </a>
-        </div>
       </aside>
-      <main className="lg:pl-72">{children}</main>
+
+      <main className="lg:pl-[264px]">
+        <div className="min-h-screen">{children}</div>
+      </main>
     </div>
   );
 }

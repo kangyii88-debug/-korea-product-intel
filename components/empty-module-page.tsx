@@ -1,43 +1,34 @@
-import Link from "next/link";
-import { AppShell } from "@/components/app-shell";
+"use client";
+
+import { Boxes } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { useLocale } from "@/components/locale-provider";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n";
 
 export function EmptyModulePage({
-  eyebrow,
-  title,
-  description,
   bullets,
+  pageKey,
 }: {
-  eyebrow: string;
-  title: string;
-  description: string;
   bullets: string[];
+  pageKey: "opportunities" | "competitors" | "pricing" | "risks" | "rocketGrowth" | "pb";
 }) {
+  const { locale } = useLocale();
+  const t = getDictionary(locale);
+  const page = t.pages[pageKey];
+
   return (
-    <AppShell>
-      <PageHeader eyebrow={eyebrow} title={title} description={description} />
-      <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:px-8">
-        <Card>
-          <CardHeader>
-            <h2 className="text-base font-semibold">当前还没有业务数据</h2>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm leading-6 text-muted-foreground">
-            <p>
-              请先添加第一个 Coupang 商品机会，系统才会开始生成这一模块的数据。
-            </p>
-            {bullets.map((item) => (
-              <p key={item}>- {item}</p>
-            ))}
-            <div className="pt-2">
-              <Link href="/products/new">
-                <Button>添加第一个商品机会</Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+    <>
+      <PageHeader eyebrow={page.eyebrow} title={page.title} description={page.description} />
+      <div className="mx-auto w-full max-w-[1240px] px-5 py-8 sm:px-8">
+        <EmptyState
+          icon={<Boxes className="h-6 w-6" />}
+          title={t.pages.dashboard.emptyTitle}
+          description={`${t.pages.dashboard.emptyDescription}${bullets.length ? ` ${bullets.join(" ")}` : ""}`}
+          primaryLabel={t.common.addProduct}
+          primaryHref="/products/new"
+        />
       </div>
-    </AppShell>
+    </>
   );
 }

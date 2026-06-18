@@ -4,20 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
-import { buildProductFromForm, saveLocalProducts, loadLocalProducts, platformOptions, type LocalProduct } from "@/lib/local-products";
+import { getDictionary } from "@/lib/i18n";
+import { buildProductFromForm, loadLocalProducts, platformOptions, saveLocalProducts, type LocalProduct } from "@/lib/local-products";
 
 const copy = {
   zh: {
-    sectionTitle: "新增测试商品",
-    sectionDescription: "录入基础信息、利润、风险和开发判断字段。中文模式全部显示中文，韩文模式全部显示韩文。",
-    success: "测试商品已创建，正在跳转到详情页。",
-    submitIdle: "创建测试商品",
-    submitLoading: "创建中...",
     groups: {
       basic: "基础信息",
-      market: "市场与利润",
-      development: "开发判断",
-      risk: "风险红线",
+      market: "价格与市场",
+      development: "分析与开发输入",
+      risk: "风险检查项",
     },
     fields: {
       productNameKo: "商品名称韩文",
@@ -36,14 +32,14 @@ const copy = {
       internationalShippingKrw: "国际物流 KRW",
       koreaShippingKrw: "韩国本地物流 KRW",
       coupangFeePercent: "Coupang 手续费 %",
-      adCostKrw: "广告费预估 KRW",
-      returnLossKrw: "退货损耗预估 KRW",
+      adCostKrw: "广告费 KRW",
+      returnLossKrw: "退货损耗 KRW",
       otherCostKrw: "其他费用 KRW",
-      estimatedMonthlySales: "预计月销",
+      estimatedMonthlySales: "预计月销量",
       reviewCount: "评论数",
       rating: "评分",
       rank: "类目排名",
-      deliveryType: "配送方式",
+      deliveryType: "配送类型",
       sellerType: "卖家类型",
       size: "尺寸",
       colors: "颜色",
@@ -55,53 +51,53 @@ const copy = {
       reviews: "评论 / 差评样本",
       marketAnalysis: "市场分析",
       priceRange: "价格区间",
-      reviewSummary: "评论分析摘要",
+      reviewSummary: "评论分析总结",
       consumerPainPoints: "消费者痛点",
       productDevelopmentDirection: "产品开发方向",
       recommendationReason: "推荐理由",
       sampleDevelopmentAdvice: "样品开发建议",
       categoryGapNote: "品类机会说明",
       fileReferences: "文件资料",
-      notes: "补充备注",
+      notes: "备注",
     },
     checks: {
       needsKcCertification: "需要 KC 认证",
-      kcDocsReady: "KC 资料已齐",
+      kcDocsReady: "KC 资料齐全",
       childrenProduct: "儿童用品",
       foodProduct: "食品类",
       electronicsProduct: "电器类",
       cosmeticsProduct: "化妆品类",
       medicalProduct: "医疗相关",
       fragile: "易破损",
-      possibleHighReturn: "退货率可能高",
+      possibleHighReturn: "可能高退货",
       uncertainRegulation: "韩国法规不确定",
       coupangRestricted: "Coupang 平台限制",
     },
   },
   ko: {
     sectionTitle: "테스트 상품 추가",
-    sectionDescription: "기본 정보, 이익, 리스크, 개발 판단 필드를 입력합니다. 한국어 모드에서는 전체 문구가 한국어로 표시됩니다.",
-    success: "테스트 상품이 생성되었습니다. 상세 페이지로 이동합니다.",
-    submitIdle: "테스트 상품 생성",
+    sectionDescription: "실제 상품을 등록하면 점수, 수익성, 리스크, RG/PB 적합도 판단이 자동으로 시작됩니다.",
+    success: "상품이 생성되었습니다. 상세 페이지로 이동합니다.",
+    submitIdle: "상품 생성",
     submitLoading: "생성 중...",
     groups: {
       basic: "기본 정보",
-      market: "시장 및 마진",
-      development: "개발 판단",
-      risk: "리스크 레드라인",
+      market: "가격 및 시장",
+      development: "분석 및 개발 입력",
+      risk: "리스크 체크",
     },
     fields: {
       productNameKo: "상품명 한국어",
       productNameZh: "상품명 중국어",
       platform: "플랫폼",
-      competitorUrl: "Coupang 경쟁상품 링크",
+      competitorUrl: "Coupang 경쟁 상품 링크",
       image: "상품 이미지 URL",
       brand: "브랜드",
       category: "카테고리",
       owner: "담당자",
       supplierQuoteCount: "공급사 견적 수",
-      supplierNames: "공급사 명",
-      competitorSalePriceKrw: "경쟁사 판매가 KRW",
+      supplierNames: "공급사 이름",
+      competitorSalePriceKrw: "경쟁 상품 판매가 KRW",
       targetSupplyPriceKrw: "목표 공급가 KRW",
       chinaCostRmb: "중국 예상 원가 RMB",
       internationalShippingKrw: "국제 물류 KRW",
@@ -110,15 +106,15 @@ const copy = {
       adCostKrw: "광고비 KRW",
       returnLossKrw: "반품 손실 KRW",
       otherCostKrw: "기타 비용 KRW",
-      estimatedMonthlySales: "예상 월판매",
+      estimatedMonthlySales: "예상 월판매량",
       reviewCount: "리뷰 수",
       rating: "평점",
       rank: "카테고리 순위",
-      deliveryType: "배송 방식",
+      deliveryType: "배송 유형",
       sellerType: "판매자 유형",
       size: "사이즈",
       colors: "색상",
-      material: "재질",
+      material: "소재",
       weight: "중량",
       packageSize: "포장 크기",
       sellingPoints: "핵심 판매 포인트",
@@ -133,14 +129,14 @@ const copy = {
       sampleDevelopmentAdvice: "샘플 개발 제안",
       categoryGapNote: "카테고리 기회 메모",
       fileReferences: "파일 자료",
-      notes: "추가 메모",
+      notes: "메모",
     },
     checks: {
       needsKcCertification: "KC 인증 필요",
       kcDocsReady: "KC 자료 준비 완료",
       childrenProduct: "아동용",
       foodProduct: "식품류",
-      electronicsProduct: "전기/전자류",
+      electronicsProduct: "전기 / 전자류",
       cosmeticsProduct: "화장품류",
       medicalProduct: "의료 관련",
       fragile: "파손 우려",
@@ -157,6 +153,7 @@ export function ProductEntryForm() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const t = copy[locale];
+  const dict = getDictionary(locale);
 
   function submit(formData: FormData) {
     setLoading(true);
@@ -166,15 +163,15 @@ export function ProductEntryForm() {
     const products: LocalProduct[] = loadLocalProducts();
     saveLocalProducts([product, ...products]);
 
-    setMessage(t.success);
+    setMessage(dict.productForm.success);
     router.push(`/reports/${product.id}`);
   }
 
   return (
-    <form action={submit} className="space-y-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+    <form action={submit} className="space-y-6 rounded-[22px] border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:p-8">
       <div>
-        <h2 className="text-base font-semibold">{t.sectionTitle}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t.sectionDescription}</p>
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{dict.productForm.newTitle}</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{dict.productForm.formDescription}</p>
       </div>
 
       <Section title={t.groups.basic}>
@@ -243,9 +240,9 @@ export function ProductEntryForm() {
         </div>
       </Section>
 
-      {message ? <p className="rounded-md border bg-stone-50 p-3 text-sm">{message}</p> : null}
+      {message ? <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{message}</p> : null}
       <div className="flex justify-end">
-        <Button disabled={loading}>{loading ? t.submitLoading : t.submitIdle}</Button>
+        <Button disabled={loading}>{loading ? dict.productForm.submitLoading : dict.productForm.submitIdle}</Button>
       </div>
     </form>
   );
@@ -253,8 +250,8 @@ export function ProductEntryForm() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-stone-200 bg-stone-50/50 p-4">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <section className="rounded-[18px] border border-slate-200 bg-slate-50/55 p-5">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -274,14 +271,14 @@ function Field({
   step?: string;
 }) {
   return (
-    <label className="text-sm font-medium">
+    <label className="text-sm font-medium text-slate-700">
       {label}
       <input
         name={name}
         type={type}
         required={required}
         step={step}
-        className="mt-2 h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
       />
     </label>
   );
@@ -289,9 +286,12 @@ function Field({
 
 function SelectField({ name, label, options }: { name: string; label: string; options: string[] }) {
   return (
-    <label className="text-sm font-medium">
+    <label className="text-sm font-medium text-slate-700">
       {label}
-      <select name={name} className="mt-2 h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm">
+      <select
+        name={name}
+        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
+      >
         {options.map((platform) => (
           <option key={platform}>{platform}</option>
         ))}
@@ -302,12 +302,12 @@ function SelectField({ name, label, options }: { name: string; label: string; op
 
 function TextArea({ name, label }: { name: string; label: string }) {
   return (
-    <label className="text-sm font-medium">
+    <label className="text-sm font-medium text-slate-700">
       {label}
       <textarea
         name={name}
         rows={4}
-        className="mt-2 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
       />
     </label>
   );
@@ -315,8 +315,8 @@ function TextArea({ name, label }: { name: string; label: string }) {
 
 function CheckField({ name, label }: { name: string; label: string }) {
   return (
-    <label className="flex items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-3 text-sm">
-      <input name={name} type="checkbox" className="h-4 w-4 rounded border-stone-300" />
+    <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+      <input name={name} type="checkbox" className="h-4 w-4 rounded border-slate-300" />
       <span>{label}</span>
     </label>
   );

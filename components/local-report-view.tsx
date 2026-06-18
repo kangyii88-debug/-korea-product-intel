@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, FileText, ShieldAlert } from "lucide-react";
 import { DecisionPill } from "@/components/decision-pill";
 import { useLocale } from "@/components/locale-provider";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n";
 import {
   analyzeProduct,
   getProductById,
@@ -15,118 +17,24 @@ import {
   type LocalProduct,
   type ProductStatus,
 } from "@/lib/local-products";
+import {
+  getActionLabel,
+  getDirectionLabel,
+  getRejectionReasonLabel,
+  getRiskLabel,
+  getStatusLabel,
+  getTaskStatusLabel,
+  normalizeRiskLevel,
+} from "@/lib/presentation";
 import { formatCurrency, formatNumber } from "@/lib/utils";
-
-const copy = {
-  zh: {
-    back: "返回测试数据库",
-    notFoundTitle: "没有找到这个商品",
-    notFoundDescription: "这条商品记录可能已经被删除或还没有写入本地知识库。",
-    openCompetitor: "打开竞品链接",
-    actions: {
-      transferRg: "转入 Rocket Growth 项目",
-      transferPb: "转入 PB 项目",
-      generateProposal: "生成产品提案",
-      generateSupplierTask: "生成供应商开发任务",
-      generateCompetitorReport: "生成竞品分析报告",
-      markObserve: "标记为继续观察",
-      markReject: "标记为淘汰",
-      saveReject: "确认淘汰",
-    },
-    sections: {
-      basic: "1. 基础信息",
-      competitor: "2. 竞品信息",
-      review: "3. 评论差评分析",
-      profit: "4. 价格与供货利润测算",
-      certification: "5. 认证风险判断",
-      logistics: "6. 物流风险判断",
-      supply: "7. 供应链优势判断",
-      rg: "8. Rocket Growth 适合度",
-      pb: "9. PB 适合度",
-      ai: "10. AI 最终判断",
-      next: "11. 下一步动作",
-      tasks: "12. 关联任务",
-      files: "13. 文件资料",
-    },
-    labels: {
-      nameKo: "商品名称韩文",
-      nameZh: "商品名称中文",
-      direction: "推荐方向",
-      totalScore: "商品适合度评分",
-      rgScore: "RG 适合度评分",
-      pbScore: "PB 适合度评分",
-      risk: "风险等级",
-      status: "当前状态",
-      nextAction: "下一步动作",
-      judgement: "判断结果",
-      opportunity: "最大机会",
-      biggestRisk: "最大风险",
-      profitSafety: "利润安全",
-      targetSupply: "建议目标供货价",
-      minimumSupply: "最低可接受供货价",
-      rejectionReason: "淘汰原因",
-    },
-    emptyFiles: "当前没有文件资料。建议补充市场截图、供应商报价单、风险材料或提案文档。",
-  },
-  ko: {
-    back: "테스트 데이터베이스로 돌아가기",
-    notFoundTitle: "상품을 찾을 수 없습니다",
-    notFoundDescription: "이 상품 기록은 아직 로컬 지식库에 저장되지 않았거나 이미 정리되었을 수 있습니다.",
-    openCompetitor: "경쟁상품 링크 열기",
-    actions: {
-      transferRg: "Rocket Growth 프로젝트로 전환",
-      transferPb: "PB 프로젝트로 전환",
-      generateProposal: "제품 제안서 생성",
-      generateSupplierTask: "공급사 개발 작업 생성",
-      generateCompetitorReport: "경쟁 분석 리포트 생성",
-      markObserve: "계속 관찰로 표시",
-      markReject: "탈락으로 표시",
-      saveReject: "탈락 확정",
-    },
-    sections: {
-      basic: "1. 기본 정보",
-      competitor: "2. 경쟁 정보",
-      review: "3. 리뷰/불만 분석",
-      profit: "4. 가격 및 공급 마진 계산",
-      certification: "5. 인증 리스크 판단",
-      logistics: "6. 물류 리스크 판단",
-      supply: "7. 공급망 우위 판단",
-      rg: "8. Rocket Growth 적합도",
-      pb: "9. PB 적합도",
-      ai: "10. AI 최종 판단",
-      next: "11. 다음 액션",
-      tasks: "12. 연관 작업",
-      files: "13. 파일 자료",
-    },
-    labels: {
-      nameKo: "상품명 한국어",
-      nameZh: "상품명 중국어",
-      direction: "추천 방향",
-      totalScore: "상품 적합도 점수",
-      rgScore: "RG 적합도 점수",
-      pbScore: "PB 적합도 점수",
-      risk: "리스크 등급",
-      status: "현재 상태",
-      nextAction: "다음 액션",
-      judgement: "판단 결과",
-      opportunity: "최대 기회",
-      biggestRisk: "최대 리스크",
-      profitSafety: "마진 안전선",
-      targetSupply: "권장 목표 공급가",
-      minimumSupply: "최저 허용 공급가",
-      rejectionReason: "탈락 사유",
-    },
-    emptyFiles: "등록된 파일 자료가 없습니다. 시장 스크린샷, 공급사 견적서, 리스크 문서, 제안서를 추가해 주세요.",
-  },
-} as const;
 
 export function LocalReportView({ productId }: { productId: string }) {
   const { locale } = useLocale();
-  const t = copy[locale];
+  const t = getDictionary(locale);
   const [product, setProduct] = useState<LocalProduct | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState("");
-  const [rejectReason, setRejectReason] = useState("利润太低");
+  const [rejectReason, setRejectReason] = useState(REJECTION_REASONS[0]);
 
   useEffect(() => {
     setProduct(getProductById(productId));
@@ -141,10 +49,10 @@ export function LocalReportView({ productId }: { productId: string }) {
     return (
       <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8">
         <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center shadow-sm">
-          <p className="text-lg font-semibold">{t.notFoundTitle}</p>
-          <p className="mt-3 text-sm text-muted-foreground">{t.notFoundDescription}</p>
+          <p className="text-lg font-semibold">{t.report.notFoundTitle}</p>
+          <p className="mt-3 text-sm text-muted-foreground">{t.report.notFoundDescription}</p>
           <Link href="/testing-db" className="mt-6 inline-flex">
-            <Button>{t.back}</Button>
+            <Button>{t.report.back}</Button>
           </Link>
         </div>
       </div>
@@ -155,46 +63,67 @@ export function LocalReportView({ productId }: { productId: string }) {
     updateLocalProduct(product.id, (current) => ({
       ...current,
       status,
-      rejectionReason: status === "已淘汰" ? current.rejectionReason : undefined,
+      rejectionReason: getStatusLabel(status, "zh") === "已淘汰" ? current.rejectionReason : undefined,
     }));
     setProduct(getProductById(product.id));
-    setFeedback(`状态已更新为「${status}」`);
+    setFeedback(`${t.report.messages.updatedStatus} ${getStatusLabel(status, locale)}`);
   };
 
   const markRejected = () => {
     updateLocalProduct(product.id, (current) => ({
       ...current,
-      status: "已淘汰",
+      status: "已淘汰" as ProductStatus,
       rejectionReason: rejectReason as LocalProduct["rejectionReason"],
     }));
     setProduct(getProductById(product.id));
-    setFeedback(`商品已淘汰，原因：${rejectReason}`);
+    setFeedback(`${t.report.messages.rejected} ${getRejectionReasonLabel(rejectReason, locale)}`);
   };
 
   const transferTo = (target: "rg" | "pb") => {
     const check = target === "rg" ? analysis.transferCheckRg : analysis.transferCheckPb;
-    const label = target === "rg" ? t.actions.transferRg : t.actions.transferPb;
+    const label = target === "rg" ? t.report.actions.transferRg : t.report.actions.transferPb;
+
     if (!check.ready) {
-      setFeedback(`${label}失败，缺少：${check.missing.join("、")}`);
+      setFeedback(`${t.report.messages.transferBlocked} ${check.missing.join(", ")}`);
       return;
     }
 
     updateLocalProduct(product.id, (current) => ({
       ...current,
-      status: "已转入 RG/PB 项目系统",
+      status: "已转入 RG/PB 项目系统" as ProductStatus,
     }));
     setProduct(getProductById(product.id));
-    setFeedback(`${label}检查通过，已更新为项目系统已转入状态。`);
+    setFeedback(`${label} · ${t.report.messages.transferDone}`);
   };
 
+  const actionButtons = [
+    { label: t.report.actions.transferRg, onClick: () => transferTo("rg") },
+    { label: t.report.actions.transferPb, onClick: () => transferTo("pb") },
+    { label: t.report.actions.generateProposal, onClick: () => setFeedback(t.report.messages.generatedProposal) },
+    { label: t.report.actions.generateSupplierTask, onClick: () => setFeedback(t.report.messages.generatedSupplierTask) },
+    { label: t.report.actions.generateCompetitorReport, onClick: () => setFeedback(t.report.messages.generatedCompetitorReport) },
+    { label: t.report.actions.markObserve, onClick: () => updateStatus("继续观察" as ProductStatus) },
+  ];
+
+  const topMetrics = [
+    { label: t.report.labels.direction, value: getDirectionLabel(analysis.direction, locale), note: analysis.totalJudgement },
+    { label: t.report.labels.totalScore, value: `${analysis.totalScore}`, note: analysis.totalJudgement },
+    { label: t.report.labels.rgScore, value: `${analysis.rgScore}`, note: analysis.rgJudgement },
+    { label: t.report.labels.pbScore, value: `${analysis.pbScore}`, note: analysis.pbJudgement },
+    { label: t.report.labels.risk, value: getRiskLabel(analysis.riskLevel, locale), note: analysis.riskRedlineLevel },
+    { label: t.report.labels.status, value: getStatusLabel(product.status, locale), note: analysis.nextAction },
+  ];
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:px-8">
+    <div className="space-y-6">
+      <PageHeader eyebrow={t.pages.report.eyebrow} title={t.pages.report.title} description={t.pages.report.description} />
+      <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:px-8">
       <Link href="/testing-db" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />
-        {t.back}
+        {t.report.back}
       </Link>
 
-      {analysis.riskRedlineLevel === "高风险红线" || analysis.riskRedlineLevel === "禁止推进" ? (
+      {(analysis.riskRedlineLevel === "高风险红线" || analysis.riskRedlineLevel === "禁止推进") && (
         <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-rose-800">
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
@@ -202,7 +131,7 @@ export function LocalReportView({ productId }: { productId: string }) {
             <p className="mt-1 text-sm leading-6">{analysis.riskSummary}</p>
           </div>
         </div>
-      ) : null}
+      )}
 
       {feedback ? <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm">{feedback}</div> : null}
 
@@ -215,11 +144,11 @@ export function LocalReportView({ productId }: { productId: string }) {
               <Badge>{analysis.riskRedlineLevel}</Badge>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{t.labels.nameKo}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{t.report.labels.nameKo}</p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight">{product.productNameKo}</h2>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{t.labels.nameZh}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{t.report.labels.nameZh}</p>
               <p className="mt-1 text-lg text-muted-foreground">{product.productNameZh}</p>
             </div>
             {product.competitorUrl ? (
@@ -229,136 +158,123 @@ export function LocalReportView({ productId }: { productId: string }) {
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-slate-700 underline"
               >
-                {t.openCompetitor}
+                {t.report.openCompetitor}
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <TopMetric label={t.labels.direction} value={analysis.direction} note={analysis.totalJudgement} />
-            <TopMetric label={t.labels.totalScore} value={`${analysis.totalScore}`} note={analysis.biggestOpportunity} />
-            <TopMetric label={t.labels.rgScore} value={`${analysis.rgScore}`} note={analysis.rgJudgement} />
-            <TopMetric label={t.labels.pbScore} value={`${analysis.pbScore}`} note={analysis.pbJudgement} />
-            <TopMetric label={t.labels.risk} value={`${analysis.riskLevel}`} note={analysis.riskSummary} />
-            <TopMetric label={t.labels.status} value={product.status} note={analysis.nextAction} />
+            {topMetrics.map((item) => (
+              <TopMetric key={item.label} {...item} />
+            ))}
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-3">
-        <ActionPanel
-          title={t.sections.next}
-          actions={[
-            { label: t.actions.transferRg, onClick: () => transferTo("rg") },
-            { label: t.actions.transferPb, onClick: () => transferTo("pb") },
-            { label: t.actions.generateProposal, onClick: () => setFeedback("已生成产品提案任务。") },
-            { label: t.actions.generateSupplierTask, onClick: () => setFeedback("已生成供应商开发任务。") },
-            { label: t.actions.generateCompetitorReport, onClick: () => setFeedback("已生成竞品分析报告任务。") },
-            { label: t.actions.markObserve, onClick: () => updateStatus("继续观察") },
-          ]}
-        />
+        <ActionPanel title={t.report.sections.next} actions={actionButtons} />
 
         <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm xl:col-span-2">
           <div className="flex flex-wrap gap-2">
             {analysis.statusSuggestions.map((status) => (
               <Button key={status} variant="outline" onClick={() => updateStatus(status)}>
-                {status}
+                {getStatusLabel(status, locale)}
               </Button>
             ))}
           </div>
           <div className="mt-4 flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center">
             <select
               value={rejectReason}
-              onChange={(event) => setRejectReason(event.target.value)}
+              onChange={(event) => setRejectReason(event.target.value as (typeof REJECTION_REASONS)[number])}
               className="h-10 rounded-md border border-rose-200 bg-white px-3 text-sm"
             >
               {REJECTION_REASONS.map((reason) => (
                 <option key={reason} value={reason}>
-                  {reason}
+                  {getRejectionReasonLabel(reason, locale)}
                 </option>
               ))}
             </select>
             <Button variant="outline" onClick={markRejected}>
-              {t.actions.saveReject}
+              {t.report.actions.saveReject}
             </Button>
           </div>
         </section>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <InfoCard title={t.sections.basic}>
-          <Info label={t.labels.nameKo} value={product.productNameKo} />
-          <Info label={t.labels.nameZh} value={product.productNameZh} />
-          <Info label="平台" value={product.platform} />
-          <Info label="品牌" value={product.brand || "-"} />
-          <Info label="类目" value={product.category || "-"} />
-          <Info label="负责人" value={product.owner || "-"} />
-          <Info label="配送方式" value={product.deliveryType || "-"} />
-          <Info label="卖家类型" value={product.sellerType || "-"} />
-          <Info label="尺寸 / 重量" value={`${product.size || "-"} / ${product.weight || "-"}`} />
+        <InfoCard title={t.report.sections.basic}>
+          <Info label={t.report.labels.nameKo} value={product.productNameKo} />
+          <Info label={t.report.labels.nameZh} value={product.productNameZh} />
+          <Info label={t.report.labels.platform} value={product.platform} />
+          <Info label={t.report.labels.brand} value={product.brand || "-"} />
+          <Info label={t.report.labels.category} value={product.category || "-"} />
+          <Info label={t.report.labels.owner} value={product.owner || "-"} />
+          <Info label={t.report.labels.deliveryType} value={product.deliveryType || "-"} />
+          <Info label={t.report.labels.sellerType} value={product.sellerType || "-"} />
+          <Info label={t.report.labels.sizeWeight} value={`${product.size || "-"} / ${product.weight || "-"}`} />
         </InfoCard>
 
-        <InfoCard title={t.sections.competitor}>
-          <Info label="竞品售价" value={formatCurrency(product.competitorSalePriceKrw)} />
-          <Info label="预计月销" value={formatNumber(product.estimatedMonthlySales)} />
-          <Info label="评论数" value={formatNumber(product.reviewCount)} />
-          <Info label="评分" value={`${product.rating || 0}`} />
-          <Info label="类目排名" value={product.rank ? `#${product.rank}` : "-"} />
-          <Info label={t.labels.opportunity} value={analysis.biggestOpportunity} />
-          <Info label={t.labels.biggestRisk} value={analysis.biggestRisk} />
+        <InfoCard title={t.report.sections.competitor}>
+          <Info label={locale === "ko" ? "경쟁 판매가" : "竞品售价"} value={formatCurrency(product.competitorSalePriceKrw)} />
+          <Info label={locale === "ko" ? "예상 월판매량" : "预计月销量"} value={formatNumber(product.estimatedMonthlySales)} />
+          <Info label={locale === "ko" ? "리뷰 수" : "评论数"} value={formatNumber(product.reviewCount)} />
+          <Info label={locale === "ko" ? "평점" : "评分"} value={`${product.rating || 0}`} />
+          <Info label={locale === "ko" ? "类目排名" : "类目排名"} value={product.rank ? `#${product.rank}` : "-"} />
+          <Info label={t.report.labels.opportunity} value={analysis.biggestOpportunity} />
+          <Info label={t.report.labels.biggestRisk} value={analysis.biggestRisk} />
         </InfoCard>
 
-        <ScoreCard title={t.sections.review} rows={analysis.scoreDimensions.filter((item) => item.label === "差评可改进性")} />
+        <ScoreCard title={t.report.sections.review} rows={analysis.scoreDimensions} />
 
-        <InfoCard title={t.sections.profit}>
-          <Info label="最终毛利 KRW" value={formatCurrency(analysis.grossProfitKrw)} />
-          <Info label="最终毛利率 %" value={`${analysis.grossMarginPercent}%`} />
-          <Info label={t.labels.profitSafety} value={`${analysis.profitSafety} · ${analysis.profitSafetyNote}`} />
-          <Info label={t.labels.targetSupply} value={formatCurrency(analysis.suggestedTargetSupplyPriceKrw)} />
-          <Info label={t.labels.minimumSupply} value={formatCurrency(analysis.minimumAcceptableSupplyPriceKrw)} />
+        <InfoCard title={t.report.sections.profit}>
+          <Info label={locale === "ko" ? "최종 총이익 KRW" : "最终毛利 KRW"} value={formatCurrency(analysis.grossProfitKrw)} />
+          <Info label={locale === "ko" ? "최종 마진율 %" : "最终毛利率 %"} value={`${analysis.grossMarginPercent}%`} />
+          <Info label={t.report.labels.profitSafety} value={`${analysis.profitSafety} · ${analysis.profitSafetyNote}`} />
+          <Info label={t.report.labels.targetSupply} value={formatCurrency(analysis.suggestedTargetSupplyPriceKrw)} />
+          <Info label={t.report.labels.minimumSupply} value={formatCurrency(analysis.minimumAcceptableSupplyPriceKrw)} />
         </InfoCard>
 
-        <InfoCard title={t.sections.certification}>
-          <Info label="KC 认证需求" value={product.needsKcCertification ? "需要" : "不需要/待确认"} />
-          <Info label="KC 资料" value={product.kcDocsReady ? "已完整" : "未完整"} />
-          <Info label="认证判断" value={analysis.riskSummary} />
+        <InfoCard title={t.report.sections.certification}>
+          <Info label={locale === "ko" ? "KC 인증 필요" : "需要 KC 认证"} value={product.needsKcCertification ? t.common.confirm : t.common.cancel} />
+          <Info label={locale === "ko" ? "KC 자료 준비" : "KC 资料"} value={product.kcDocsReady ? t.common.confirm : t.common.cancel} />
+          <Info label={locale === "ko" ? "인증 판단" : "认证判断"} value={analysis.riskSummary} />
         </InfoCard>
 
-        <InfoCard title={t.sections.logistics}>
-          <Info label="包装尺寸" value={product.packageSize || "-"} />
-          <Info label="重量" value={product.weight || "-"} />
-          <Info label="韩国本地物流" value={formatCurrency(product.koreaShippingKrw)} />
-          <Info label="国际物流" value={formatCurrency(product.internationalShippingKrw)} />
-          <Info label="物流风险" value={analysis.riskRedlineLevel} />
+        <InfoCard title={t.report.sections.logistics}>
+          <Info label={locale === "ko" ? "포장 크기" : "包装尺寸"} value={product.packageSize || "-"} />
+          <Info label={locale === "ko" ? "重量" : "重量"} value={product.weight || "-"} />
+          <Info label={locale === "ko" ? "韩国本地物流" : "韩国本地物流"} value={formatCurrency(product.koreaShippingKrw)} />
+          <Info label={locale === "ko" ? "国际物流" : "国际物流"} value={formatCurrency(product.internationalShippingKrw)} />
+          <Info label={locale === "ko" ? "物流风险" : "物流风险"} value={analysis.riskRedlineLevel} />
         </InfoCard>
 
-        <InfoCard title={t.sections.supply}>
-          <Info label="供应商报价数" value={`${product.supplierQuoteCount}`} />
-          <Info label="供应商列表" value={product.supplierNames.join("、") || "-"} />
-          <Info label="供应链优势" value={analysis.scoreDimensions.find((item) => item.label === "供应链优势")?.note ?? "-"} />
-          <Info label="品类机会说明" value={product.categoryGapNote || "-"} />
+        <InfoCard title={t.report.sections.supply}>
+          <Info label={locale === "ko" ? "供应商报价数" : "供应商报价数"} value={`${product.supplierQuoteCount}`} />
+          <Info label={locale === "ko" ? "供应商名称" : "供应商名称"} value={product.supplierNames.join(", ") || "-"} />
+          <Info label={locale === "ko" ? "品类机会" : "品类机会"} value={product.categoryGapNote || "-"} />
+          <Info label={locale === "ko" ? "开发方向" : "产品开发方向"} value={product.productDevelopmentDirection || "-"} />
         </InfoCard>
 
-        <ScoreCard title={t.sections.rg} rows={analysis.rgDimensions} footer={analysis.rgJudgement} />
-        <ScoreCard title={t.sections.pb} rows={analysis.pbDimensions} footer={analysis.pbJudgement} />
+        <ScoreCard title={t.report.sections.rg} rows={analysis.rgDimensions} footer={analysis.rgJudgement} />
+        <ScoreCard title={t.report.sections.pb} rows={analysis.pbDimensions} footer={analysis.pbJudgement} />
 
-        <InfoCard title={t.sections.ai}>
-          <Info label={t.labels.judgement} value={analysis.totalJudgement} />
-          <Info label={t.labels.direction} value={analysis.direction} />
-          <Info label={t.labels.opportunity} value={analysis.biggestOpportunity} />
-          <Info label={t.labels.biggestRisk} value={analysis.biggestRisk} />
-          <Info label={t.labels.nextAction} value={analysis.nextAction} />
+        <InfoCard title={t.report.sections.ai}>
+          <Info label={t.report.labels.judgement} value={analysis.totalJudgement} />
+          <Info label={t.report.labels.direction} value={getDirectionLabel(analysis.direction, locale)} />
+          <Info label={t.report.labels.opportunity} value={analysis.biggestOpportunity} />
+          <Info label={t.report.labels.biggestRisk} value={analysis.biggestRisk} />
+          <Info label={t.report.labels.nextAction} value={analysis.nextAction} />
         </InfoCard>
 
-        <InfoCard title={t.sections.tasks}>
+        <InfoCard title={t.report.sections.tasks}>
           {analysis.generatedTasks.length ? (
             <div className="space-y-3">
               {analysis.generatedTasks.map((task) => (
                 <div key={task.id} className="rounded-xl border border-stone-200 bg-stone-50 p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{task.title}</p>
-                    <Badge>{task.status}</Badge>
+                    <p className="font-medium">{getActionLabel(task.title, locale)}</p>
+                    <Badge>{getTaskStatusLabel(task.status, locale)}</Badge>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{task.reason}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -368,11 +284,11 @@ export function LocalReportView({ productId }: { productId: string }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">当前没有自动任务，建议先补齐利润和风险信息。</p>
+            <p className="text-sm text-muted-foreground">{t.report.noTasks}</p>
           )}
         </InfoCard>
 
-        <InfoCard title={t.sections.files}>
+        <InfoCard title={t.report.sections.files}>
           {product.fileReferences.length ? (
             <div className="space-y-3">
               {product.fileReferences.map((file) => (
@@ -383,10 +299,11 @@ export function LocalReportView({ productId }: { productId: string }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{t.emptyFiles}</p>
+            <p className="text-sm text-muted-foreground">{t.report.emptyFiles}</p>
           )}
         </InfoCard>
       </section>
+      </div>
     </div>
   );
 }

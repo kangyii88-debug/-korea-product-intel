@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({
@@ -15,6 +17,8 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { locale } = useLocale();
+  const t = getDictionary(locale);
   const next = searchParams.get("next") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +35,7 @@ export function LoginForm({
 
     const supabase = createClient({ url: supabaseUrl, anonKey: supabaseAnonKey });
     if (!supabase) {
-      setMessage("Supabase 连接未配置，请先使用免密码预览入口。");
+      setMessage(t.loginForm.missingSupabase);
       setLoading(false);
       return;
     }
@@ -40,7 +44,7 @@ export function LoginForm({
       const result = await supabase.auth.signInWithPassword({ email, password });
 
       if (result.error) {
-        setMessage("登录失败：账号不存在或密码不正确。你可以先创建账号，或使用免密码预览入口。");
+        setMessage(t.loginForm.signInError);
         setLoading(false);
         return;
       }
@@ -59,14 +63,14 @@ export function LoginForm({
     });
 
     if (result.error) {
-      setMessage(`创建账号失败：${result.error.message}`);
+      setMessage(`${t.loginForm.signUpError}: ${result.error.message}`);
       setLoading(false);
       return;
     }
 
     if (!result.data.session) {
       setMessageTone("success");
-      setMessage("账号已创建。请检查邮箱确认邮件，确认后再返回登录。");
+      setMessage(t.loginForm.signUpSuccess);
       setLoading(false);
       return;
     }
@@ -79,7 +83,7 @@ export function LoginForm({
     <form onSubmit={submit} className="space-y-5">
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-800" htmlFor="email">
-          邮箱
+          {t.loginForm.email}
         </label>
         <input
           id="email"
@@ -88,13 +92,13 @@ export function LoginForm({
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
-          placeholder="you@company.com"
+          placeholder={t.loginForm.emailPlaceholder}
         />
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-800" htmlFor="password">
-          密码
+          {t.loginForm.password}
         </label>
         <input
           id="password"
@@ -104,7 +108,7 @@ export function LoginForm({
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
-          placeholder="至少 6 位"
+          placeholder={t.loginForm.passwordPlaceholder}
         />
       </div>
 
@@ -125,12 +129,12 @@ export function LoginForm({
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              处理中
+              {t.loginForm.loading}
             </>
           ) : mode === "signin" ? (
-            "登录"
+            t.loginForm.signIn
           ) : (
-            "创建账号"
+            t.loginForm.signUp
           )}
         </Button>
 
@@ -142,7 +146,7 @@ export function LoginForm({
             window.location.href = `/api/auth/demo?next=${encodeURIComponent(next)}`;
           }}
         >
-          免密码进入系统
+          {t.loginForm.demoAccess}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
@@ -155,7 +159,7 @@ export function LoginForm({
         }}
         className="w-full text-sm text-slate-500 transition hover:text-slate-950"
       >
-        {mode === "signin" ? "没有账号？创建一个" : "已有账号？返回登录"}
+        {mode === "signin" ? t.loginForm.switchToSignup : t.loginForm.switchToSignin}
       </button>
     </form>
   );

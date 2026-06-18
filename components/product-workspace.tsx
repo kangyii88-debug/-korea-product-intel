@@ -4,19 +4,29 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Download, Filter, Plus, Search } from "lucide-react";
 import { DecisionPill } from "@/components/decision-pill";
+import { EmptyState } from "@/components/empty-state";
 import { useLocale } from "@/components/locale-provider";
-import { Badge } from "@/components/ui/badge";
+import { SectionCard } from "@/components/section-card";
+import { StatCard } from "@/components/stat-card";
+import { RiskBadge } from "@/components/risk-badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n";
 import {
   analyzeProduct,
-  getDisplayName,
   loadLocalProducts,
+  PRODUCT_STATUS_OPTIONS,
   type LocalProduct,
   type ProductAnalysis,
-  type ProductStatus,
-  type RecommendationDirection,
-  type RiskLevel,
 } from "@/lib/local-products";
+import {
+  getCategoryDisplayName,
+  getDirectionLabel,
+  getRiskLabel,
+  getStatusLabel,
+  normalizeDirection,
+  normalizeRiskLevel,
+} from "@/lib/presentation";
 import { formatNumber } from "@/lib/utils";
 
 type ProductRow = {
@@ -24,102 +34,19 @@ type ProductRow = {
   analysis: ProductAnalysis;
 };
 
-const copy = {
-  zh: {
-    searchPlaceholder: "搜索商品名、类目、负责人、推荐方向",
-    addButton: "新增测试商品",
-    exportButton: "导出当前视图",
-    emptyTitle: "当前还没有商品数据。",
-    emptyDescription: "请先添加第一个 Coupang 商品机会，系统将从市场分析、竞品分析、评论痛点、利润测算和 RG/PB 适合度开始判断。",
-    emptyAction: "立即新增商品",
-    filters: {
-      direction: "推荐方向",
-      status: "状态",
-      risk: "风险等级",
-      score: "评分区间",
-      highPotential: "高潜力",
-      highRisk: "高风险",
-      rejected: "已淘汰",
-      transferable: "可转项目",
-    },
-    columns: {
-      product: "商品名称",
-      category: "类目",
-      direction: "推荐方向",
-      totalScore: "总评分",
-      rgScore: "RG 评分",
-      pbScore: "PB 评分",
-      margin: "利润率",
-      risk: "风险等级",
-      status: "当前状态",
-      nextAction: "下一步动作",
-      owner: "负责人",
-      updatedAt: "更新时间",
-    },
-    metrics: {
-      collected: "本月采集商品数",
-      potential: "高潜力商品数",
-      rg: "Rocket Growth 候选品数量",
-      pb: "PB 候选品数量",
-      dual: "RG + PB 双向候选品",
-      risk: "高风险商品数",
-      rejected: "已淘汰商品数",
-      tasks: "待执行任务数量",
-    },
-  },
-  ko: {
-    searchPlaceholder: "상품명, 카테고리, 담당자, 추천 방향 검색",
-    addButton: "테스트 상품 추가",
-    exportButton: "현재 보기 내보내기",
-    emptyTitle: "아직 등록된 상품 데이터가 없습니다.",
-    emptyDescription: "첫 번째 Coupang 상품 기회를 추가하면 시장 분석, 경쟁 상품 분석, 리뷰 문제점, 수익성 계산, RG/PB 적합도 판단을 시작할 수 있습니다.",
-    emptyAction: "지금 상품 추가",
-    filters: {
-      direction: "추천 방향",
-      status: "상태",
-      risk: "리스크 등급",
-      score: "점수 구간",
-      highPotential: "고잠재력",
-      highRisk: "고위험",
-      rejected: "탈락 포함",
-      transferable: "프로젝트 전환 가능",
-    },
-    columns: {
-      product: "상품명",
-      category: "카테고리",
-      direction: "추천 방향",
-      totalScore: "총점",
-      rgScore: "RG 점수",
-      pbScore: "PB 점수",
-      margin: "마진율",
-      risk: "리스크",
-      status: "현재 상태",
-      nextAction: "다음 액션",
-      owner: "담당자",
-      updatedAt: "업데이트",
-    },
-    metrics: {
-      collected: "이번 달 수집 상품 수",
-      potential: "고잠재력 상품 수",
-      rg: "Rocket Growth 후보 수",
-      pb: "PB 후보 수",
-      dual: "RG + PB 이중 후보 수",
-      risk: "고위험 상품 수",
-      rejected: "탈락 상품 수",
-      tasks: "대기 작업 수",
-    },
-  },
-} as const;
+const DIRECTION_OPTIONS = ["all", "Rocket Growth", "PB", "Rocket Growth + PB", "继续观察", "放弃"] as const;
+const RISK_OPTIONS = ["all", "低", "中", "高"] as const;
+const SCORE_OPTIONS = ["all", "85+", "70-84", "60-69", "<60"] as const;
 
 export function ProductWorkspace() {
   const { locale } = useLocale();
-  const t = copy[locale];
+  const t = getDictionary(locale);
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [query, setQuery] = useState("");
-  const [directionFilter, setDirectionFilter] = useState<RecommendationDirection | "全部">("全部");
-  const [statusFilter, setStatusFilter] = useState<ProductStatus | "全部">("全部");
-  const [riskFilter, setRiskFilter] = useState<RiskLevel | "全部">("全部");
-  const [scoreFilter, setScoreFilter] = useState<"全部" | "85+" | "70-84" | "60-69" | "<60">("全部");
+  const [directionFilter, setDirectionFilter] = useState<(typeof DIRECTION_OPTIONS)[number]>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [riskFilter, setRiskFilter] = useState<(typeof RISK_OPTIONS)[number]>("all");
+  const [scoreFilter, setScoreFilter] = useState<(typeof SCORE_OPTIONS)[number]>("all");
   const [onlyHighPotential, setOnlyHighPotential] = useState(false);
   const [onlyHighRisk, setOnlyHighRisk] = useState(false);
   const [includeRejected, setIncludeRejected] = useState(true);
@@ -141,206 +68,210 @@ export function ProductWorkspace() {
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return analyzed.filter(({ product, analysis }) => {
+      const normalizedDirection = normalizeDirection(analysis.direction);
+      const normalizedRisk = normalizeRiskLevel(analysis.riskLevel);
       const searchable = [
         product.productNameKo,
         product.productNameZh,
-        getDisplayName(product.productNameZh, locale),
-        getDisplayName(product.productNameKo, locale),
         product.category,
         product.brand,
         product.owner,
-        analysis.direction,
+        normalizedDirection,
         analysis.nextAction,
       ]
         .join(" ")
         .toLowerCase();
 
       const scoreMatch =
-        scoreFilter === "全部" ||
+        scoreFilter === "all" ||
         (scoreFilter === "85+" && analysis.totalScore >= 85) ||
         (scoreFilter === "70-84" && analysis.totalScore >= 70 && analysis.totalScore <= 84) ||
         (scoreFilter === "60-69" && analysis.totalScore >= 60 && analysis.totalScore <= 69) ||
         (scoreFilter === "<60" && analysis.totalScore < 60);
 
       const transferable = analysis.transferCheckRg.ready || analysis.transferCheckPb.ready;
+      const rejectedLabel = getStatusLabel(product.status, "zh");
 
       return (
         (!keyword || searchable.includes(keyword)) &&
-        (directionFilter === "全部" || analysis.direction === directionFilter) &&
-        (statusFilter === "全部" || product.status === statusFilter) &&
-        (riskFilter === "全部" || analysis.riskLevel === riskFilter) &&
+        (directionFilter === "all" || normalizedDirection === directionFilter) &&
+        (statusFilter === "all" || product.status === statusFilter) &&
+        (riskFilter === "all" || normalizedRisk === riskFilter) &&
         scoreMatch &&
         (!onlyHighPotential || analysis.totalScore >= 85) &&
-        (!onlyHighRisk || analysis.riskLevel === "高") &&
-        (includeRejected || product.status !== "已淘汰") &&
+        (!onlyHighRisk || normalizedRisk === "高") &&
+        (includeRejected || rejectedLabel !== "已淘汰") &&
         (!onlyTransferable || transferable)
       );
     });
-  }, [
-    analyzed,
-    directionFilter,
-    includeRejected,
-    locale,
-    onlyHighPotential,
-    onlyHighRisk,
-    onlyTransferable,
-    query,
-    riskFilter,
-    scoreFilter,
-    statusFilter,
-  ]);
+  }, [analyzed, directionFilter, includeRejected, onlyHighPotential, onlyHighRisk, onlyTransferable, query, riskFilter, scoreFilter, statusFilter]);
 
   const monthKey = new Date().toISOString().slice(0, 7);
   const metrics = [
-    [t.metrics.collected, analyzed.filter((item) => item.product.createdAt.slice(0, 7) === monthKey).length],
-    [t.metrics.potential, analyzed.filter((item) => item.analysis.totalScore >= 85).length],
-    [t.metrics.rg, analyzed.filter((item) => item.analysis.direction === "Rocket Growth").length],
-    [t.metrics.pb, analyzed.filter((item) => item.analysis.direction === "PB").length],
-    [t.metrics.dual, analyzed.filter((item) => item.analysis.direction === "Rocket Growth + PB").length],
-    [t.metrics.risk, analyzed.filter((item) => item.analysis.riskLevel === "高").length],
-    [t.metrics.rejected, analyzed.filter((item) => item.product.status === "已淘汰").length],
-    [t.metrics.tasks, analyzed.reduce((sum, item) => sum + item.analysis.generatedTasks.length, 0)],
+    [t.pages.dashboard.metrics.collected, analyzed.filter((item) => item.product.createdAt.slice(0, 7) === monthKey).length],
+    [t.pages.dashboard.metrics.potential, analyzed.filter((item) => item.analysis.totalScore >= 85).length],
+    [t.pages.dashboard.metrics.rg, analyzed.filter((item) => normalizeDirection(item.analysis.direction) === "Rocket Growth").length],
+    [t.pages.dashboard.metrics.pb, analyzed.filter((item) => normalizeDirection(item.analysis.direction) === "PB").length],
+    [t.pages.dashboard.metrics.dual, analyzed.filter((item) => normalizeDirection(item.analysis.direction) === "Rocket Growth + PB").length],
+    [t.pages.dashboard.metrics.highRisk, analyzed.filter((item) => normalizeRiskLevel(item.analysis.riskLevel) === "高").length],
+    [t.pages.dashboard.metrics.rejected, analyzed.filter((item) => getStatusLabel(item.product.status, "zh") === "已淘汰").length],
+    [t.pages.dashboard.metrics.tasks, analyzed.reduce((sum, item) => sum + item.analysis.generatedTasks.length, 0)],
   ];
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 px-5 py-6 sm:px-8">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-5 py-8 sm:px-8">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value]) => (
-          <Metric key={String(label)} label={String(label)} value={formatNumber(Number(value))} />
+          <StatCard key={String(label)} label={String(label)} value={formatNumber(Number(value))} note={t.workspace.metricsNote} />
         ))}
-      </div>
+      </section>
 
-      <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative max-w-lg flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t.searchPlaceholder}
-              className="h-10 w-full rounded-md border border-stone-200 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+      <SectionCard title={t.workspace.filterTitle} description={t.workspace.filterDescription}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-xl flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t.workspace.searchPlaceholder}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline">
+                <Download className="h-4 w-4" />
+                {t.workspace.exportButton}
+              </Button>
+              <Link href="/products/new">
+                <Button>
+                  <Plus className="h-4 w-4" />
+                  {t.common.addProduct}
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid gap-3 xl:grid-cols-4">
+            <SelectFilter
+              label={t.workspace.filters.direction}
+              value={directionFilter}
+              onChange={(value) => setDirectionFilter(value as (typeof DIRECTION_OPTIONS)[number])}
+              options={DIRECTION_OPTIONS.map((value) => ({
+                value,
+                label: value === "all" ? t.common.all : getDirectionLabel(value, locale),
+              }))}
+            />
+            <SelectFilter
+              label={t.workspace.filters.status}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: "all", label: t.common.all },
+                ...PRODUCT_STATUS_OPTIONS.map((value) => ({ value, label: getStatusLabel(value, locale) })),
+              ]}
+            />
+            <SelectFilter
+              label={t.workspace.filters.risk}
+              value={riskFilter}
+              onChange={(value) => setRiskFilter(value as (typeof RISK_OPTIONS)[number])}
+              options={RISK_OPTIONS.map((value) => ({
+                value,
+                label: value === "all" ? t.common.all : getRiskLabel(value, locale),
+              }))}
+            />
+            <SelectFilter
+              label={t.workspace.filters.score}
+              value={scoreFilter}
+              onChange={(value) => setScoreFilter(value as (typeof SCORE_OPTIONS)[number])}
+              options={SCORE_OPTIONS.map((value) => ({
+                value,
+                label: value === "all" ? t.common.all : value,
+              }))}
             />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Download className="h-4 w-4" />
-              {t.exportButton}
-            </Button>
-            <Link href="/products/new">
-              <Button>
-                <Plus className="h-4 w-4" />
-                {t.addButton}
-              </Button>
-            </Link>
+
+          <div className="flex flex-wrap gap-3">
+            <ToggleChip label={t.workspace.filters.highPotential} checked={onlyHighPotential} onChange={setOnlyHighPotential} />
+            <ToggleChip label={t.workspace.filters.highRisk} checked={onlyHighRisk} onChange={setOnlyHighRisk} />
+            <ToggleChip label={t.workspace.filters.rejected} checked={includeRejected} onChange={setIncludeRejected} />
+            <ToggleChip label={t.workspace.filters.transferable} checked={onlyTransferable} onChange={setOnlyTransferable} />
           </div>
         </div>
-
-        <div className="mt-4 grid gap-3 xl:grid-cols-4">
-          <SelectFilter
-            label={t.filters.direction}
-            value={directionFilter}
-            onChange={(value) => setDirectionFilter(value as RecommendationDirection | "全部")}
-            options={["全部", "Rocket Growth", "PB", "Rocket Growth + PB", "继续观察", "放弃"]}
-          />
-          <SelectFilter
-            label={t.filters.status}
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value as ProductStatus | "全部")}
-            options={["全部", "新发现", "待分析", "分析中", "待供应商报价", "待利润测算", "待风险确认", "RG 候选", "PB 候选", "RG + PB 双向候选", "准备转项目", "已转入 RG/PB 项目系统", "继续观察", "已淘汰"]}
-          />
-          <SelectFilter
-            label={t.filters.risk}
-            value={riskFilter}
-            onChange={(value) => setRiskFilter(value as RiskLevel | "全部")}
-            options={["全部", "低", "中", "高"]}
-          />
-          <SelectFilter
-            label={t.filters.score}
-            value={scoreFilter}
-            onChange={(value) => setScoreFilter(value as typeof scoreFilter)}
-            options={["全部", "85+", "70-84", "60-69", "<60"]}
-          />
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-3">
-          <ToggleChip label={t.filters.highPotential} checked={onlyHighPotential} onChange={setOnlyHighPotential} />
-          <ToggleChip label={t.filters.highRisk} checked={onlyHighRisk} onChange={setOnlyHighRisk} />
-          <ToggleChip label={t.filters.rejected} checked={includeRejected} onChange={setIncludeRejected} />
-          <ToggleChip label={t.filters.transferable} checked={onlyTransferable} onChange={setOnlyTransferable} />
-        </div>
-      </div>
+      </SectionCard>
 
       {products.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white p-12 text-center shadow-sm">
-          <p className="text-lg font-semibold">{t.emptyTitle}</p>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{t.emptyDescription}</p>
-          <Link href="/products/new" className="mt-6 inline-flex">
-            <Button>
-              {t.emptyAction}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
+        <EmptyState
+          title={t.pages.dashboard.emptyTitle}
+          description={t.pages.dashboard.emptyDescription}
+          primaryLabel={t.common.addProduct}
+          primaryHref="/products/new"
+        />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-          <div className="grid grid-cols-[1.4fr_0.9fr_1fr_90px_90px_90px_90px_120px_1.2fr_90px_120px_120px_28px] border-b border-stone-200 bg-stone-50 px-4 py-3 text-xs font-medium text-muted-foreground">
-            <span>{t.columns.product}</span>
-            <span>{t.columns.category}</span>
-            <span>{t.columns.direction}</span>
-            <span>{t.columns.totalScore}</span>
-            <span>{t.columns.rgScore}</span>
-            <span>{t.columns.pbScore}</span>
-            <span>{t.columns.margin}</span>
-            <span>{t.columns.risk}</span>
-            <span>{t.columns.status}</span>
-            <span>{t.columns.owner}</span>
-            <span>{t.columns.updatedAt}</span>
-            <span>{t.columns.nextAction}</span>
-            <span />
-          </div>
-          {filtered.map(({ product, analysis }) => (
-            <Link
-              href={`/reports/${product.id}`}
-              key={product.id}
-              className="grid grid-cols-[1.4fr_0.9fr_1fr_90px_90px_90px_90px_120px_1.2fr_90px_120px_120px_28px] items-center border-b border-stone-100 px-4 py-4 text-sm transition-colors last:border-b-0 hover:bg-stone-50"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {locale === "ko" ? product.productNameKo : product.productNameZh}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {product.brand || "N/A"} · {product.platform} · {analysis.totalJudgement}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  <Badge>{analysis.biggestOpportunity}</Badge>
-                  <Badge className="border-rose-200 bg-rose-50 text-rose-700">{analysis.biggestRisk}</Badge>
+        <SectionCard title={t.workspace.listTitle} description={t.workspace.listDescription}>
+          <div className="space-y-4">
+            {filtered.map(({ product, analysis }) => (
+              <Link
+                href={`/reports/${product.id}`}
+                key={product.id}
+                className="grid gap-4 rounded-[18px] border border-slate-200 bg-slate-50/55 p-5 transition-colors hover:bg-slate-50 lg:grid-cols-[minmax(0,1.7fr)_170px_140px_120px_120px_120px_140px]"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-base font-semibold tracking-[-0.02em] text-slate-950">
+                      {locale === "ko" ? product.productNameKo : product.productNameZh}
+                    </p>
+                    <StatusBadge tone="neutral">{product.platform}</StatusBadge>
+                    <StatusBadge tone="neutral">{getCategoryDisplayName(product.category, locale)}</StatusBadge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <StatusBadge tone="info">{analysis.biggestOpportunity}</StatusBadge>
+                    <StatusBadge tone="danger">{analysis.biggestRisk}</StatusBadge>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-500">{analysis.nextAction}</p>
                 </div>
-              </div>
-              <span className="text-muted-foreground">{product.category || "-"}</span>
-              <DecisionPill decision={analysis.direction} />
-              <ScorePill value={analysis.totalScore} />
-              <ScorePill value={analysis.rgScore} />
-              <ScorePill value={analysis.pbScore} />
-              <span>{analysis.grossMarginPercent}%</span>
-              <RiskPill level={analysis.riskLevel} redline={analysis.riskRedlineLevel} />
-              <span className="text-sm">{product.status}</span>
-              <span>{product.owner}</span>
-              <span>{formatDate(product.updatedAt)}</span>
-              <span className="line-clamp-2 text-xs text-muted-foreground">{analysis.nextAction}</span>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </Link>
-          ))}
-        </div>
+                <MetaBlock label={t.workspace.filters.direction}>
+                  <DecisionPill decision={analysis.direction} />
+                </MetaBlock>
+                <MetaBlock label={t.workspace.labels.score}>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p>{locale === "ko" ? `총점 ${analysis.totalScore}` : `总分 ${analysis.totalScore}`}</p>
+                    <p>RG {analysis.rgScore}</p>
+                    <p>PB {analysis.pbScore}</p>
+                  </div>
+                </MetaBlock>
+                <MetaBlock label={t.common.risk}>
+                  <RiskBadge level={normalizeRiskLevel(analysis.riskLevel)} detail={analysis.riskRedlineLevel} />
+                </MetaBlock>
+                <MetaBlock label={t.workspace.labels.profitRate}>
+                  <p className="text-sm font-semibold text-slate-900">{analysis.grossMarginPercent}%</p>
+                </MetaBlock>
+                <MetaBlock label={t.common.status}>
+                  <StatusBadge tone="neutral">{getStatusLabel(product.status, locale)}</StatusBadge>
+                </MetaBlock>
+                <MetaBlock label={t.workspace.labels.updatedAt}>
+                  <div className="space-y-2 text-sm text-slate-600">
+                    <p>{formatDate(product.updatedAt)}</p>
+                    <div className="inline-flex items-center gap-1 font-medium text-slate-900">
+                      {t.common.viewDetails}
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+                  </div>
+                </MetaBlock>
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
       )}
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function MetaBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
+    <div>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <div className="mt-3">{children}</div>
     </div>
   );
 }
@@ -354,22 +285,22 @@ function SelectFilter({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  options: Array<{ value: string; label: string }>;
 }) {
   return (
     <label className="text-sm font-medium">
-      <span className="mb-2 inline-flex items-center gap-2 text-muted-foreground">
+      <span className="mb-2 inline-flex items-center gap-2 text-slate-500">
         <Filter className="h-3.5 w-3.5" />
         {label}
       </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
       >
         {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -390,8 +321,8 @@ function ToggleChip({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-        checked ? "border-slate-900 bg-slate-900 text-white" : "border-stone-200 bg-white text-muted-foreground"
+      className={`rounded-full border px-3 py-2 text-sm transition-colors ${
+        checked ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
       }`}
     >
       {label}
@@ -399,32 +330,8 @@ function ToggleChip({
   );
 }
 
-function ScorePill({ value }: { value: number }) {
-  const className =
-    value >= 85
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : value >= 70
-        ? "border-sky-200 bg-sky-50 text-sky-700"
-        : value >= 60
-          ? "border-amber-200 bg-amber-50 text-amber-700"
-          : "border-rose-200 bg-rose-50 text-rose-700";
-
-  return <Badge className={className}>{value}</Badge>;
-}
-
-function RiskPill({ level, redline }: { level: RiskLevel; redline: string }) {
-  const className =
-    level === "高"
-      ? "border-rose-200 bg-rose-50 text-rose-700"
-      : level === "中"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-emerald-200 bg-emerald-50 text-emerald-700";
-
-  return <Badge className={className}>{`${level} · ${redline}`}</Badge>;
-}
-
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`;
 }
