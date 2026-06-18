@@ -6,14 +6,14 @@ import { ProductWorkspace } from "@/components/product-workspace";
 
 const copy = {
   zh: {
-    eyebrow: "Product Test Database",
+    eyebrow: "Testing Database",
     title: "商品测试数据库",
-    description: "汇总测试商品、销量预测、成本测算和开发状态，支持用中文或韩文统一查看与录入。",
+    description: "用于验证候选商品的销量、评论、利润、物流和供应链适配度，为 Rocket Growth / PB 项目分流提供基础测试数据。",
   },
   ko: {
-    eyebrow: "Product Test Database",
+    eyebrow: "Testing Database",
     title: "상품 테스트 데이터베이스",
-    description: "테스트 상품, 판매 예측, 원가 계산, 개발 상태를 한곳에서 관리하고 한국어 또는 중국어로 일관되게 확인합니다.",
+    description: "후보 상품의 판매량, 리뷰, 이익, 물류, 공급망 적합성을 검증하여 Rocket Growth / PB 프로젝트 분류의 기반 데이터를 제공합니다.",
   },
 } as const;
 

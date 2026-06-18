@@ -5,13 +5,18 @@ import {
   BarChart3,
   BrainCircuit,
   Boxes,
+  Calculator,
   ClipboardCheck,
+  FlaskConical,
   Lightbulb,
   LogOut,
   MessageSquareWarning,
   PackageSearch,
   Radar,
+  SearchCheck,
   Settings2,
+  ShieldAlert,
+  TrendingUp,
 } from "lucide-react";
 import { LocaleProvider, useLocale } from "@/components/locale-provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
@@ -19,32 +24,44 @@ import { Badge } from "@/components/ui/badge";
 
 const navigationCopy = {
   zh: {
-    title: "Coupang 选品 ERP",
-    subtitle: "用 AI 管理测试商品、评论问题、开发建议、Perplexity 情报和运营决策。",
+    title: "Coupang 商品情报系统",
+    subtitle: "Coupang 商品情报与 B2B 项目筛选系统，只负责机会采集、分析、判断和分流。",
     signOut: "退出登录",
     provider: "AI Provider",
     items: [
-      { href: "/", label: "商品测试数据库", icon: PackageSearch },
-      { href: "/products/new", label: "新增测试商品", icon: BarChart3 },
-      { href: "/reviews", label: "评论问题分析", icon: MessageSquareWarning },
+      { href: "/", label: "选品情报看板", icon: TrendingUp },
+      { href: "/opportunities", label: "商品机会池", icon: PackageSearch },
+      { href: "/competitors", label: "Coupang 竞品采集库", icon: SearchCheck },
+      { href: "/reviews", label: "评论差评分析", icon: MessageSquareWarning },
+      { href: "/pricing-profit", label: "价格与供货利润测算", icon: Calculator },
+      { href: "/risk-logistics", label: "认证 / 物流风险判断", icon: ShieldAlert },
+      { href: "/testing-db", label: "商品测试数据库", icon: FlaskConical },
       { href: "/development", label: "产品开发建议", icon: Lightbulb },
+      { href: "/rocket-growth", label: "Rocket Growth 候选品", icon: BarChart3 },
+      { href: "/pb", label: "PB 候选品", icon: Boxes },
       { href: "/decisions", label: "AI 决策中心", icon: ClipboardCheck },
-      { href: "/perplexity", label: "Perplexity Intelligence", icon: BrainCircuit },
+      { href: "/perplexity", label: "Perplexity 情报中心", icon: BrainCircuit },
       { href: "/actions", label: "执行动作清单", icon: Radar },
     ],
   },
   ko: {
-    title: "Coupang 상품 ERP",
-    subtitle: "AI로 테스트 상품, 리뷰 이슈, 개발 제안, Perplexity 인텔리전스와 운영 의사결정을 함께 관리합니다.",
+    title: "Coupang 상품 인텔리전스 시스템",
+    subtitle: "Coupang 상품 인텔리전스 및 B2B 프로젝트 선별 시스템으로 기회 발굴, 분석, 판단, 분류를 담당합니다.",
     signOut: "로그아웃",
     provider: "AI Provider",
     items: [
-      { href: "/", label: "상품 테스트 데이터베이스", icon: PackageSearch },
-      { href: "/products/new", label: "테스트 상품 추가", icon: BarChart3 },
-      { href: "/reviews", label: "리뷰 문제 분석", icon: MessageSquareWarning },
-      { href: "/development", label: "상품 개발 제안", icon: Lightbulb },
+      { href: "/", label: "선정 인텔리전스 대시보드", icon: TrendingUp },
+      { href: "/opportunities", label: "상품 기회 풀", icon: PackageSearch },
+      { href: "/competitors", label: "Coupang 경쟁상품 수집库", icon: SearchCheck },
+      { href: "/reviews", label: "리뷰 / 불만 분석", icon: MessageSquareWarning },
+      { href: "/pricing-profit", label: "가격 및 공급 마진 분석", icon: Calculator },
+      { href: "/risk-logistics", label: "인증 / 물류 리스크 판단", icon: ShieldAlert },
+      { href: "/testing-db", label: "상품 테스트 데이터베이스", icon: FlaskConical },
+      { href: "/development", label: "제품 개발 제안", icon: Lightbulb },
+      { href: "/rocket-growth", label: "Rocket Growth 후보", icon: BarChart3 },
+      { href: "/pb", label: "PB 후보", icon: Boxes },
       { href: "/decisions", label: "AI 의사결정 센터", icon: ClipboardCheck },
-      { href: "/perplexity", label: "Perplexity Intelligence", icon: BrainCircuit },
+      { href: "/perplexity", label: "Perplexity 인텔리전스 센터", icon: BrainCircuit },
       { href: "/actions", label: "실행 액션 목록", icon: Radar },
     ],
   },
@@ -72,11 +89,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-2">
             <LocaleSwitcher />
-            <a
-              href="/api/auth/signout"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground"
-              aria-label={copy.signOut}
-            >
+            <a href="/api/auth/signout" className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground" aria-label={copy.signOut}>
               <LogOut className="h-4 w-4" />
             </a>
           </div>

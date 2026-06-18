@@ -6,9 +6,9 @@ export default function PerplexityPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Perplexity Intelligence"
-        title="Perplexity Intelligence Module"
-        description="预留 Perplexity API 接入能力，当前版本使用模拟数据跑通市场研究、趋势发现、竞品分析和新品发现。"
+        eyebrow="Perplexity Intelligence Center"
+        title="Perplexity 情报中心"
+        description="用于补充市场研究、趋势发现、竞品分析和新品机会发现，服务 Rocket Growth 与 PB 项目筛选。"
       />
       <PerplexityIntelligenceClient />
     </AppShell>
