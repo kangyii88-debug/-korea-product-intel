@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, ClipboardList, Factory, FileText, Layers3, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ActionButtonGroup } from "@/components/action-button-group";
+import { AppShell } from "@/components/app-shell";
 import { DecisionPill } from "@/components/decision-pill";
 import { EmptyState } from "@/components/empty-state";
 import { useLocale } from "@/components/locale-provider";
@@ -48,7 +49,7 @@ export default function ActionsPage() {
   const allActions = actionRows.flatMap((item) => item.actions);
 
   return (
-    <>
+    <AppShell>
       <PageHeader
         eyebrow={t.pages.actions.eyebrow}
         title={t.pages.actions.title}
@@ -100,6 +101,6 @@ export default function ActionsPage() {
           </SectionCard>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }

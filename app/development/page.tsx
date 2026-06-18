@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { useLocale } from "@/components/locale-provider";
 import { PageHeader } from "@/components/page-header";
@@ -29,7 +30,7 @@ export default function DevelopmentPage() {
   );
 
   return (
-    <>
+    <AppShell>
       <PageHeader
         eyebrow={t.pages.development.eyebrow}
         title={t.pages.development.title}
@@ -66,6 +67,6 @@ export default function DevelopmentPage() {
           </SectionCard>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }

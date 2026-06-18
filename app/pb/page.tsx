@@ -1,5 +1,10 @@
+import { AppShell } from "@/components/app-shell";
 import { EmptyModulePage } from "@/components/empty-module-page";
 
 export default function PbPage() {
-  return <EmptyModulePage pageKey="pb" bullets={[]} />;
+  return (
+    <AppShell>
+      <EmptyModulePage pageKey="pb" bullets={[]} />
+    </AppShell>
+  );
 }

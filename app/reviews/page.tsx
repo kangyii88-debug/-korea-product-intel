@@ -2,6 +2,7 @@
 
 import { MessageSquareWarning } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { useLocale } from "@/components/locale-provider";
 import { PageHeader } from "@/components/page-header";
@@ -38,7 +39,7 @@ export default function ReviewsPage() {
   }, [products]);
 
   return (
-    <>
+    <AppShell>
       <PageHeader
         eyebrow={t.pages.reviews.eyebrow}
         title={t.pages.reviews.title}
@@ -89,6 +90,6 @@ export default function ReviewsPage() {
           </SectionCard>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }

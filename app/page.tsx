@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BarChart3, Boxes, CheckCircle2, Clock3, Layers3, ShieldAlert, Target, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
@@ -81,7 +82,7 @@ export default function Home() {
   ];
 
   return (
-    <>
+    <AppShell>
       <PageHeader
         eyebrow={t.pages.dashboard.eyebrow}
         title={t.pages.dashboard.title}
@@ -126,6 +127,6 @@ export default function Home() {
           </section>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }

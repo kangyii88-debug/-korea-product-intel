@@ -1,5 +1,10 @@
+import { AppShell } from "@/components/app-shell";
 import { EmptyModulePage } from "@/components/empty-module-page";
 
 export default function RocketGrowthPage() {
-  return <EmptyModulePage pageKey="rocketGrowth" bullets={[]} />;
+  return (
+    <AppShell>
+      <EmptyModulePage pageKey="rocketGrowth" bullets={[]} />
+    </AppShell>
+  );
 }

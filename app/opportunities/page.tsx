@@ -1,5 +1,10 @@
+import { AppShell } from "@/components/app-shell";
 import { EmptyModulePage } from "@/components/empty-module-page";
 
 export default function OpportunitiesPage() {
-  return <EmptyModulePage pageKey="opportunities" bullets={[]} />;
+  return (
+    <AppShell>
+      <EmptyModulePage pageKey="opportunities" bullets={[]} />
+    </AppShell>
+  );
 }

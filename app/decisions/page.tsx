@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "@/components/app-shell";
 import { DecisionPill } from "@/components/decision-pill";
 import { EmptyState } from "@/components/empty-state";
 import { useLocale } from "@/components/locale-provider";
@@ -34,7 +35,7 @@ export default function DecisionsPage() {
   const directions = sorted.map((item) => normalizeDirection(item.analysis.direction));
 
   return (
-    <>
+    <AppShell>
       <PageHeader
         eyebrow={t.pages.decisions.eyebrow}
         title={t.pages.decisions.title}
@@ -89,7 +90,7 @@ export default function DecisionsPage() {
           </SectionCard>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }
 
