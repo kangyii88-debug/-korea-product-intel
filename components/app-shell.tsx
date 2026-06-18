@@ -98,20 +98,22 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <aside className="fixed left-0 top-0 hidden h-screen w-[264px] border-r border-slate-200 bg-[#fafafa] px-4 py-5 lg:block">
+      <aside className="fixed left-0 top-0 hidden h-screen w-[296px] border-r border-slate-200 bg-[#fafafa] px-4 py-5 lg:block">
         <div className="flex h-full flex-col">
           <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-white">
+            <div className="flex flex-col gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
                   <Boxes className="h-5 w-5" />
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold tracking-[-0.02em] text-slate-950">{t.nav.title}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{t.nav.title}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{t.nav.subtitle}</p>
                 </div>
               </div>
-              <LanguageToggle />
+              <div className="flex justify-end">
+                <LanguageToggle />
+              </div>
             </div>
           </div>
 
@@ -134,7 +136,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
                         )}
                       >
                         <item.icon className={cn("h-4 w-4 shrink-0", active ? "text-slate-950" : "text-slate-400")} />
-                        <span className="truncate">{item.label}</span>
+                        <span>{item.label}</span>
                       </Link>
                     );
                   })}
@@ -156,7 +158,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="lg:pl-[264px]">
+      <main className="lg:pl-[296px]">
         <div className="min-h-screen">{children}</div>
       </main>
     </div>

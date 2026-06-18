@@ -10,7 +10,7 @@ export function LanguageToggle() {
       <button
         type="button"
         onClick={() => setLocale("zh")}
-        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+        className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
           locale === "zh" ? "bg-slate-950 text-white" : "text-slate-500 hover:bg-slate-50"
         }`}
       >
@@ -19,7 +19,7 @@ export function LanguageToggle() {
       <button
         type="button"
         onClick={() => setLocale("ko")}
-        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+        className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
           locale === "ko" ? "bg-slate-950 text-white" : "text-slate-500 hover:bg-slate-50"
         }`}
       >
