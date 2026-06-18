@@ -6,6 +6,7 @@ import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { getDisplayName } from "@/lib/local-products";
 import { products } from "@/lib/mock-data";
 
 export default function DecisionsPage() {
@@ -39,9 +40,9 @@ export default function DecisionsPage() {
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{product.name}</p>
+                    <p className="font-medium">{getDisplayName(product.name)}</p>
                     <Badge>{product.platform}</Badge>
-                    <Badge>{product.category}</Badge>
+                    <Badge>{getDisplayName(product.category)}</Badge>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     机会分 {product.score}，毛利空间 {product.marginScore}，风险分 {product.riskScore}。下一步应由决策结论决定采购动作。
