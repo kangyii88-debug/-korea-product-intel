@@ -526,6 +526,78 @@ create table if not exists competitor_intelligence_reports (
   price_movers jsonb default '[]'
 );
 
+create table if not exists market_reports (
+  id uuid primary key default gen_random_uuid(),
+  report_key text unique not null,
+  capability text not null default 'market-research',
+  title text not null,
+  query text,
+  summary text,
+  output_json jsonb default '{}',
+  output_markdown text,
+  output_csv text,
+  source_mode text default 'mock',
+  provider text default 'perplexity',
+  model_name text,
+  status text default 'mock_ready',
+  generated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+create table if not exists trend_reports (
+  id uuid primary key default gen_random_uuid(),
+  report_key text unique not null,
+  capability text not null default 'trend-discovery',
+  title text not null,
+  query text,
+  summary text,
+  output_json jsonb default '{}',
+  output_markdown text,
+  output_csv text,
+  source_mode text default 'mock',
+  provider text default 'perplexity',
+  model_name text,
+  status text default 'mock_ready',
+  generated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+create table if not exists competitor_reports (
+  id uuid primary key default gen_random_uuid(),
+  report_key text unique not null,
+  capability text not null default 'competitor-analysis',
+  title text not null,
+  query text,
+  summary text,
+  output_json jsonb default '{}',
+  output_markdown text,
+  output_csv text,
+  source_mode text default 'mock',
+  provider text default 'perplexity',
+  model_name text,
+  status text default 'mock_ready',
+  generated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+create table if not exists opportunity_reports (
+  id uuid primary key default gen_random_uuid(),
+  report_key text unique not null,
+  capability text not null default 'new-product-discovery',
+  title text not null,
+  query text,
+  summary text,
+  output_json jsonb default '{}',
+  output_markdown text,
+  output_csv text,
+  source_mode text default 'mock',
+  provider text default 'perplexity',
+  model_name text,
+  status text default 'mock_ready',
+  generated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
 create table if not exists market_alerts (
   id text primary key,
   alert_type text not null,
@@ -589,3 +661,7 @@ create index if not exists idx_market_trend_snapshots_date_platform on market_tr
 create index if not exists idx_market_product_trends_window_speed on market_product_trends(growth_window_days, growth_speed desc);
 create index if not exists idx_market_alerts_type_time on market_alerts(alert_type, created_at desc);
 create index if not exists idx_market_alerts_unresolved on market_alerts(is_resolved, severity, created_at desc);
+create index if not exists idx_market_reports_generated_at on market_reports(generated_at desc);
+create index if not exists idx_trend_reports_generated_at on trend_reports(generated_at desc);
+create index if not exists idx_competitor_reports_generated_at on competitor_reports(generated_at desc);
+create index if not exists idx_opportunity_reports_generated_at on opportunity_reports(generated_at desc);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   BarChart3,
+  BrainCircuit,
   Boxes,
   ClipboardCheck,
   Lightbulb,
@@ -19,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 const navigationCopy = {
   zh: {
     title: "Coupang 选品 ERP",
-    subtitle: "用 AI 管理测试商品、差评分析、开发建议和运营决策。",
+    subtitle: "用 AI 管理测试商品、评论问题、开发建议、Perplexity 情报和运营决策。",
     signOut: "退出登录",
     provider: "AI Provider",
     items: [
@@ -28,12 +29,13 @@ const navigationCopy = {
       { href: "/reviews", label: "评论问题分析", icon: MessageSquareWarning },
       { href: "/development", label: "产品开发建议", icon: Lightbulb },
       { href: "/decisions", label: "AI 决策中心", icon: ClipboardCheck },
+      { href: "/perplexity", label: "Perplexity Intelligence", icon: BrainCircuit },
       { href: "/actions", label: "执行动作清单", icon: Radar },
     ],
   },
   ko: {
     title: "Coupang 상품 ERP",
-    subtitle: "AI로 테스트 상품, 리뷰 이슈, 개발 제안, 운영 의사결정을 함께 관리합니다.",
+    subtitle: "AI로 테스트 상품, 리뷰 이슈, 개발 제안, Perplexity 인텔리전스와 운영 의사결정을 함께 관리합니다.",
     signOut: "로그아웃",
     provider: "AI Provider",
     items: [
@@ -42,6 +44,7 @@ const navigationCopy = {
       { href: "/reviews", label: "리뷰 문제 분석", icon: MessageSquareWarning },
       { href: "/development", label: "상품 개발 제안", icon: Lightbulb },
       { href: "/decisions", label: "AI 의사결정 센터", icon: ClipboardCheck },
+      { href: "/perplexity", label: "Perplexity Intelligence", icon: BrainCircuit },
       { href: "/actions", label: "실행 액션 목록", icon: Radar },
     ],
   },
