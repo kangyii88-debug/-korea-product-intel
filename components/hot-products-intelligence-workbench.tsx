@@ -497,75 +497,97 @@ export function HotProductsIntelligenceWorkbench() {
 
         <SectionCard title={t.filters.title} description={t.filters.description}>
           <div className="flex flex-col gap-4">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))]">
-              <FilterInput
-                label={t.filters.search}
-                value={filters.query}
-                onChange={(value) => setFilters((current) => ({ ...current, query: value }))}
-              />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+              <div className="xl:col-span-4">
+                <FilterInput
+                  label={t.filters.search}
+                  value={filters.query}
+                  onChange={(value) => setFilters((current) => ({ ...current, query: value }))}
+                />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.finalDecision}
                 value={filters.finalDecision}
                 onChange={(value) => setFilters((current) => ({ ...current, finalDecision: value as Filters["finalDecision"] }))}
                 options={decisionOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.direction}
                 value={filters.recommendedDirection}
                 onChange={(value) => setFilters((current) => ({ ...current, recommendedDirection: value as Filters["recommendedDirection"] }))}
                 options={directionOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.source}
                 value={filters.source}
                 onChange={(value) => setFilters((current) => ({ ...current, source: value as Filters["source"] }))}
                 options={sourceOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.monthlyPurchase}
                 value={filters.monthlyPurchase}
                 onChange={(value) => setFilters((current) => ({ ...current, monthlyPurchase: value as Filters["monthlyPurchase"] }))}
                 options={monthlyOptions(t)}
               />
+              </div>
             </div>
 
-            <div className="grid gap-3 xl:grid-cols-6">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.marketHeat}
                 value={filters.marketHeat}
                 onChange={(value) => setFilters((current) => ({ ...current, marketHeat: value as Filters["marketHeat"] }))}
                 options={heatOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.profit}
                 value={filters.profitLevel}
                 onChange={(value) => setFilters((current) => ({ ...current, profitLevel: value as Filters["profitLevel"] }))}
                 options={profitOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.risk}
                 value={filters.riskLevel}
                 onChange={(value) => setFilters((current) => ({ ...current, riskLevel: value as Filters["riskLevel"] }))}
                 options={riskOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.painPoint}
                 value={filters.painPoint}
                 onChange={(value) => setFilters((current) => ({ ...current, painPoint: value as Filters["painPoint"] }))}
                 options={painPointOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.supply}
                 value={filters.supplyChainStatus}
                 onChange={(value) => setFilters((current) => ({ ...current, supplyChainStatus: value as Filters["supplyChainStatus"] }))}
                 options={supplyOptions(t)}
               />
+              </div>
+              <div className="xl:col-span-2">
               <FilterSelect
                 label={t.filters.action}
                 value={filters.currentAction}
                 onChange={(value) => setFilters((current) => ({ ...current, currentAction: value as Filters["currentAction"] }))}
                 options={actionOptions(t)}
               />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -586,7 +608,7 @@ export function HotProductsIntelligenceWorkbench() {
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedId(item.id)}
-                    className={`grid w-full min-w-0 gap-4 rounded-[18px] border p-5 text-left transition-all xl:grid-cols-[minmax(0,1.7fr)_150px_150px_180px_180px] ${
+                    className={`grid w-full min-w-0 gap-4 rounded-[18px] border p-5 text-left transition-all xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.95fr)] ${
                       item.id === selectedId
                         ? "border-sky-200 bg-[linear-gradient(135deg,#fffdf7_0%,#f6f9ff_55%,#eef6ff_100%)] shadow-[0_10px_30px_rgba(15,23,42,0.08)]"
                         : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white"
@@ -621,31 +643,33 @@ export function HotProductsIntelligenceWorkbench() {
                       </div>
                     </div>
 
-                    <ListMetricBlock label={t.list.market}>
-                      <p>{purchaseBucketLabel(item.monthlyPurchaseBucket, t)}</p>
-                      <p>{item.currentPrice ? `${formatNumber(item.currentPrice)} KRW` : t.common.noData}</p>
-                      <p>{`${item.rating || 0} / ${formatNumber(item.reviewCount)}`}</p>
-                      <p>{marketHeatLabel(item.marketHeat, t)}</p>
-                    </ListMetricBlock>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <ListMetricBlock label={t.list.market}>
+                        <p>{purchaseBucketLabel(item.monthlyPurchaseBucket, t)}</p>
+                        <p>{item.currentPrice ? `${formatNumber(item.currentPrice)} KRW` : t.common.noData}</p>
+                        <p>{`${item.rating || 0} / ${formatNumber(item.reviewCount)}`}</p>
+                        <p>{marketHeatLabel(item.marketHeat, t)}</p>
+                      </ListMetricBlock>
 
-                    <ListMetricBlock label={t.list.competitor}>
-                      <p>{item.coreSellingPoints[0] || t.common.noData}</p>
-                      <p>{item.painPoints[0] || t.common.noData}</p>
-                      <p>{item.improvementPoints[0] || t.common.noData}</p>
-                    </ListMetricBlock>
+                      <ListMetricBlock label={t.list.competitor}>
+                        <p>{item.coreSellingPoints[0] || t.common.noData}</p>
+                        <p>{item.painPoints[0] || t.common.noData}</p>
+                        <p>{item.improvementPoints[0] || t.common.noData}</p>
+                      </ListMetricBlock>
 
-                    <ListMetricBlock label={t.list.profitRisk}>
-                      <p>{profitLabel(item.profitLevel, t)}</p>
-                      <p>{riskLabel(item.riskLevel, t)}</p>
-                      <p>{`${t.detail.certification}: ${riskLabel(item.certificationRisk, t)}`}</p>
-                      <p>{`${t.detail.logistics}: ${riskLabel(item.logisticsRisk, t)}`}</p>
-                    </ListMetricBlock>
+                      <ListMetricBlock label={t.list.profitRisk}>
+                        <p>{profitLabel(item.profitLevel, t)}</p>
+                        <p>{riskLabel(item.riskLevel, t)}</p>
+                        <p>{`${t.detail.certification}: ${riskLabel(item.certificationRisk, t)}`}</p>
+                        <p>{`${t.detail.logistics}: ${riskLabel(item.logisticsRisk, t)}`}</p>
+                      </ListMetricBlock>
 
-                    <ListMetricBlock label={t.list.action}>
-                      <p>{supplyLabel(item.supplyChainStatus, t)}</p>
-                      <p>{actionLabel(item.nextAction, t)}</p>
-                      <p>{item.nextActionDetail || t.common.noData}</p>
-                    </ListMetricBlock>
+                      <ListMetricBlock label={t.list.action}>
+                        <p>{supplyLabel(item.supplyChainStatus, t)}</p>
+                        <p>{actionLabel(item.nextAction, t)}</p>
+                        <p>{item.nextActionDetail || t.common.noData}</p>
+                      </ListMetricBlock>
+                    </div>
                   </button>
                 ))}
                 {!filtered.length ? <EmptyPanel message={t.list.empty} /> : null}
