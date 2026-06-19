@@ -538,12 +538,12 @@ export function DashboardOpportunityCenter() {
         }
       />
 
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-5 py-6 sm:px-8 sm:py-8">
+      <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:px-10 2xl:px-12">
         {banner ? <Banner tone={banner.tone} message={banner.message} onClose={() => setBanner(null)} /> : null}
 
         <Card>
           <CardContent className="p-5 sm:p-6">
-            <div className="grid gap-4 xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(240px,1.4fr)]">
+            <div className="grid gap-4 2xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(360px,1.6fr)] xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(300px,1.35fr)]">
               <FilterSelect
                 label={t.filters.status}
                 value={filters.status}
@@ -599,7 +599,7 @@ export function DashboardOpportunityCenter() {
           </CardContent>
         </Card>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-8 xl:grid-cols-4">
           <MetricCard
             label={t.metrics.monthNew.label}
             note={t.metrics.monthNew.note}
@@ -668,195 +668,260 @@ export function DashboardOpportunityCenter() {
         ) : items.length === 0 ? (
           <EmptyOpportunityState locale={locale} onAdd={openCreateDrawer} onImport={onImport} />
         ) : (
-          <Card>
-            <CardHeader className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
-              <div>
-                <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{t.table.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{t.table.description}</p>
-              </div>
-              <p className="text-sm text-slate-500">{interpolate(t.table.total, { count: String(displayItems.length) })}</p>
-            </CardHeader>
-            <CardContent className="overflow-hidden p-0">
-              <div className="overflow-x-auto">
-                <table className="min-w-[1200px] w-full border-separate border-spacing-0">
-                  <thead>
-                    <tr className="bg-slate-50/70">
-                      <TableHeaderCell>{t.table.columns.opportunity}</TableHeaderCell>
-                      <TableHeaderCell>{t.table.columns.category}</TableHeaderCell>
-                      <TableHeaderCell>{t.table.columns.direction}</TableHeaderCell>
-                      <SortableHeader
-                        label={t.table.columns.marketHeat}
-                        active={sortKey === "score"}
-                        direction={sortDirection}
-                        onClick={() => toggleSort("score", sortKey, sortDirection, setSortKey, setSortDirection)}
-                      />
-                      <TableHeaderCell>{t.table.columns.competition}</TableHeaderCell>
-                      <TableHeaderCell>{t.table.columns.profit}</TableHeaderCell>
-                      <TableHeaderCell>{t.table.columns.risk}</TableHeaderCell>
-                      <SortableHeader
-                        label={t.table.columns.score}
-                        active={sortKey === "score"}
-                        direction={sortDirection}
-                        onClick={() => toggleSort("score", sortKey, sortDirection, setSortKey, setSortDirection)}
-                      />
-                      <TableHeaderCell>{t.table.columns.status}</TableHeaderCell>
-                      <TableHeaderCell>{t.table.columns.nextAction}</TableHeaderCell>
-                      <SortableHeader
-                        label={t.table.columns.updatedAt}
-                        active={sortKey === "updated_at"}
-                        direction={sortDirection}
-                        onClick={() => toggleSort("updated_at", sortKey, sortDirection, setSortKey, setSortDirection)}
-                      />
-                      <TableHeaderCell align="right">{t.table.columns.operations}</TableHeaderCell>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={12} className="px-6 py-12 text-center text-sm text-slate-500">
-                          {t.table.empty}
-                        </td>
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
+            <Card>
+              <CardHeader className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{t.table.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">{t.table.description}</p>
+                </div>
+                <p className="text-sm text-slate-500">{interpolate(t.table.total, { count: String(displayItems.length) })}</p>
+              </CardHeader>
+              <CardContent className="overflow-hidden p-0">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1360px] w-full border-separate border-spacing-0">
+                    <thead>
+                      <tr className="bg-slate-50/70">
+                        <TableHeaderCell>{t.table.columns.opportunity}</TableHeaderCell>
+                        <TableHeaderCell>{t.table.columns.category}</TableHeaderCell>
+                        <TableHeaderCell>{t.table.columns.direction}</TableHeaderCell>
+                        <SortableHeader
+                          label={t.table.columns.marketHeat}
+                          active={sortKey === "score"}
+                          direction={sortDirection}
+                          onClick={() => toggleSort("score", sortKey, sortDirection, setSortKey, setSortDirection)}
+                        />
+                        <TableHeaderCell>{t.table.columns.competition}</TableHeaderCell>
+                        <TableHeaderCell>{t.table.columns.profit}</TableHeaderCell>
+                        <TableHeaderCell>{t.table.columns.risk}</TableHeaderCell>
+                        <SortableHeader
+                          label={t.table.columns.score}
+                          active={sortKey === "score"}
+                          direction={sortDirection}
+                          onClick={() => toggleSort("score", sortKey, sortDirection, setSortKey, setSortDirection)}
+                        />
+                        <TableHeaderCell>{t.table.columns.status}</TableHeaderCell>
+                        <TableHeaderCell>{t.table.columns.nextAction}</TableHeaderCell>
+                        <SortableHeader
+                          label={t.table.columns.updatedAt}
+                          active={sortKey === "updated_at"}
+                          direction={sortDirection}
+                          onClick={() => toggleSort("updated_at", sortKey, sortDirection, setSortKey, setSortDirection)}
+                        />
+                        <TableHeaderCell align="right">{t.table.columns.operations}</TableHeaderCell>
                       </tr>
-                    ) : (
-                      pagedItems.map((item) => (
-                        <tr
-                          key={item.id}
-                          className="cursor-pointer transition hover:bg-slate-50/70"
-                          onClick={() => setDetailItem(item)}
-                        >
-                          <td className="border-t border-slate-200 px-6 py-4 align-top">
-                            <div className="flex items-start gap-3">
-                              <Thumbnail src={item.image_url} title={item.title} />
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
-                                <p className="mt-1 truncate text-xs text-slate-500">{item.keyword || item.sku || "-"}</p>
-                                {item.coupang_url ? (
-                                  <a
-                                    href={item.coupang_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(event) => event.stopPropagation()}
-                                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-950"
-                                  >
-                                    Coupang
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
-                                ) : null}
-                              </div>
-                            </div>
-                          </td>
-                          <Cell>{t.options.category[item.category]}</Cell>
-                          <Cell>
-                            <Badge tone="default">{t.options.direction[item.business_type]}</Badge>
-                          </Cell>
-                          <Cell>
-                            <Badge tone={item.market_heat === "high" ? "success" : item.market_heat === "low" ? "danger" : "default"}>
-                              {item.market_heat ? t.options.level[item.market_heat] : "-"}
-                            </Badge>
-                          </Cell>
-                          <Cell>
-                            <Badge
-                              tone={
-                                item.competition_level === "low"
-                                  ? "success"
-                                  : item.competition_level === "high"
-                                    ? "danger"
-                                    : "default"
-                              }
-                            >
-                              {item.competition_level ? t.options.level[item.competition_level] : "-"}
-                            </Badge>
-                          </Cell>
-                          <Cell>
-                            <Badge
-                              tone={
-                                item.profit_level === "high"
-                                  ? "success"
-                                  : item.profit_level === "low"
-                                    ? "danger"
-                                    : "default"
-                              }
-                            >
-                              {item.profit_level ? t.options.profitLabel[item.profit_level] : "-"}
-                            </Badge>
-                          </Cell>
-                          <Cell>
-                            <Badge tone={item.risk_level === "high" ? "danger" : item.risk_level === "medium" ? "warning" : "success"}>
-                              {item.risk_level ? t.options.riskLabel[item.risk_level] : "-"}
-                            </Badge>
-                          </Cell>
-                          <Cell>
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-slate-950">{Number(item.score ?? 0)}</p>
-                              <p className="text-xs text-slate-500">{formatPercent(Number(item.estimated_margin_rate ?? 0))}</p>
-                            </div>
-                          </Cell>
-                          <Cell>
-                            <Badge tone="default">{t.options.status[item.status]}</Badge>
-                          </Cell>
-                          <Cell className="max-w-[180px]">
-                            <p className="text-sm leading-6 text-slate-600">{item.next_action ? t.options.nextAction[item.next_action] : "-"}</p>
-                          </Cell>
-                          <Cell>{formatDate(item.updated_at)}</Cell>
-                          <td className="border-t border-slate-200 px-6 py-4 text-right align-top">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setDetailItem(item);
-                                }}
-                              >
-                                {t.actions.view}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openEditDrawer(item);
-                                }}
-                              >
-                                <PencilLine className="h-4 w-4" />
-                                {t.actions.edit}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void onDelete(item);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                {t.actions.delete}
-                              </Button>
-                            </div>
+                    </thead>
+                    <tbody>
+                      {pagedItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={12} className="px-6 py-12 text-center text-sm text-slate-500">
+                            {t.table.empty}
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                <p className="text-sm text-slate-500">{interpolate(t.table.page, { current: String(page), total: String(totalPages) })}</p>
-                <div className="flex gap-2">
-                  <Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-                    {t.table.prev}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                  >
-                    {t.table.next}
-                  </Button>
+                      ) : (
+                        pagedItems.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="cursor-pointer transition hover:bg-slate-50/70"
+                            onClick={() => setDetailItem(item)}
+                          >
+                            <td className="border-t border-slate-200 px-6 py-4 align-top">
+                              <div className="flex items-start gap-3">
+                                <Thumbnail src={item.image_url} title={item.title} />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
+                                  <p className="mt-1 truncate text-xs text-slate-500">{item.keyword || item.sku || "-"}</p>
+                                  {item.coupang_url ? (
+                                    <a
+                                      href={item.coupang_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      onClick={(event) => event.stopPropagation()}
+                                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-950"
+                                    >
+                                      Coupang
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </td>
+                            <Cell>{t.options.category[item.category]}</Cell>
+                            <Cell>
+                              <Badge tone="default">{t.options.direction[item.business_type]}</Badge>
+                            </Cell>
+                            <Cell>
+                              <Badge tone={item.market_heat === "high" ? "success" : item.market_heat === "low" ? "danger" : "default"}>
+                                {item.market_heat ? t.options.level[item.market_heat] : "-"}
+                              </Badge>
+                            </Cell>
+                            <Cell>
+                              <Badge
+                                tone={
+                                  item.competition_level === "low"
+                                    ? "success"
+                                    : item.competition_level === "high"
+                                      ? "danger"
+                                      : "default"
+                                }
+                              >
+                                {item.competition_level ? t.options.level[item.competition_level] : "-"}
+                              </Badge>
+                            </Cell>
+                            <Cell>
+                              <Badge
+                                tone={
+                                  item.profit_level === "high"
+                                    ? "success"
+                                    : item.profit_level === "low"
+                                      ? "danger"
+                                      : "default"
+                                }
+                              >
+                                {item.profit_level ? t.options.profitLabel[item.profit_level] : "-"}
+                              </Badge>
+                            </Cell>
+                            <Cell>
+                              <Badge tone={item.risk_level === "high" ? "danger" : item.risk_level === "medium" ? "warning" : "success"}>
+                                {item.risk_level ? t.options.riskLabel[item.risk_level] : "-"}
+                              </Badge>
+                            </Cell>
+                            <Cell>
+                              <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-950">{Number(item.score ?? 0)}</p>
+                                <p className="text-xs text-slate-500">{formatPercent(Number(item.estimated_margin_rate ?? 0))}</p>
+                              </div>
+                            </Cell>
+                            <Cell>
+                              <Badge tone="default">{t.options.status[item.status]}</Badge>
+                            </Cell>
+                            <Cell className="max-w-[180px]">
+                              <p className="text-sm leading-6 text-slate-600">{item.next_action ? t.options.nextAction[item.next_action] : "-"}</p>
+                            </Cell>
+                            <Cell>{formatDate(item.updated_at)}</Cell>
+                            <td className="border-t border-slate-200 px-6 py-4 text-right align-top">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setDetailItem(item);
+                                  }}
+                                >
+                                  {t.actions.view}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openEditDrawer(item);
+                                  }}
+                                >
+                                  <PencilLine className="h-4 w-4" />
+                                  {t.actions.edit}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void onDelete(item);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  {t.actions.delete}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <p className="text-sm text-slate-500">{interpolate(t.table.page, { current: String(page), total: String(totalPages) })}</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      {t.table.prev}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    >
+                      {t.table.next}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="p-5">
+                  <h3 className="text-base font-semibold tracking-[-0.02em] text-slate-950">
+                    {locale === "ko" ? "현재 작업 상태" : "当前工作状态"}
+                  </h3>
+                </CardHeader>
+                <CardContent className="space-y-4 p-5 pt-0">
+                  <SideStat
+                    label={locale === "ko" ? "저장 모드" : "保存模式"}
+                    value={storageMode === "remote" ? (locale === "ko" ? "클라우드" : "云端") : locale === "ko" ? "로컬" : "本地"}
+                  />
+                  <SideStat
+                    label={locale === "ko" ? "当前筛选后商品 수" : "当前筛选商品数"}
+                    value={String(displayItems.length)}
+                  />
+                  <SideStat
+                    label={locale === "ko" ? "当前页显示" : "当前页显示"}
+                    value={`${pagedItems.length} / ${displayItems.length}`}
+                  />
+                  <SideStat
+                    label={locale === "ko" ? "高潜力占比" : "高潜力占比"}
+                    value={`${displayItems.length ? Math.round((metrics.highPotential / Math.max(displayItems.length, 1)) * 100) : 0}%`}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="p-5">
+                  <h3 className="text-base font-semibold tracking-[-0.02em] text-slate-950">
+                    {locale === "ko" ? "当前筛选摘要" : "当前筛选摘要"}
+                  </h3>
+                </CardHeader>
+                <CardContent className="grid gap-2 p-5 pt-0">
+                  <SummaryPill label={t.filters.status} value={filters.status === "all" ? t.options.all : t.options.status[filters.status]} />
+                  <SummaryPill label={t.filters.direction} value={filters.direction === "all" ? t.options.all : t.options.direction[filters.direction]} />
+                  <SummaryPill label={t.filters.category} value={filters.category === "all" ? t.options.all : t.options.category[filters.category]} />
+                  <SummaryPill label={t.filters.risk} value={filters.risk === "all" ? t.options.all : t.options.riskLabel[filters.risk]} />
+                  <SummaryPill label={t.filters.profit} value={filters.profit === "all" ? t.options.all : t.options.profitLabel[filters.profit]} />
+                  <SummaryPill label={locale === "ko" ? "검색어" : "搜索词"} value={filters.query || (locale === "ko" ? "없음" : "无")} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="p-5">
+                  <h3 className="text-base font-semibold tracking-[-0.02em] text-slate-950">
+                    {locale === "ko" ? "录入建议" : "录入建议"}
+                  </h3>
+                </CardHeader>
+                <CardContent className="p-5 pt-0">
+                  <div className="space-y-2">
+                    {(locale === "ko"
+                      ? ["상품명과 Coupang 링크를 먼저 정확히 입력하세요", "售价와 采购预估价를 함께 입력하면 수익 판단이 바로 보입니다", "评论数、评分、竞品数量를 넣으면 리스트 판단력이 올라갑니다"]
+                      : ["先把商品名称和 Coupang 链接录准确", "同时填写售价和采购预估价，利润判断会马上生效", "补上评论数、评分、竞品数量后，列表判断会更准确"]).map((item) => (
+                      <div key={item} className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-sm leading-6 text-slate-600">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
         )}
       </div>
 
@@ -1250,6 +1315,24 @@ function MetricCard({
         </CardContent>
       </Card>
     </button>
+  );
+}
+
+function SideStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function SummaryPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium text-slate-900">{value}</span>
+    </div>
   );
 }
 
