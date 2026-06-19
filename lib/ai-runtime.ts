@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getPrimaryProviderEnvKey, getProviderApiKey } from "@/lib/ai-env";
 import type {
   AIAnalysisResult,
   AIProviderName,
@@ -16,7 +17,7 @@ export async function runOpenAIAnalysis(input: {
   product: ProductOpportunityRecord;
   model: string;
 }): Promise<{ result: AIAnalysisResult; mode: "live" | "fallback"; provider: AIProviderName; model: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = getProviderApiKey("OpenAI");
   if (!apiKey) {
     return {
       result: buildAnalysisFromOpportunity(input.product, input.taskType),
@@ -64,7 +65,7 @@ export async function runGeminiAnalysis(input: {
   product: ProductOpportunityRecord;
   model: string;
 }): Promise<{ result: AIAnalysisResult; mode: "live" | "fallback"; provider: AIProviderName; model: string }> {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = getProviderApiKey("Gemini");
   if (!apiKey) {
     return {
       result: buildAnalysisFromOpportunity(input.product, input.taskType),
@@ -132,7 +133,7 @@ export async function runGrokAnalysis(input: {
   product: ProductOpportunityRecord;
   model: string;
 }): Promise<{ result: AIAnalysisResult; mode: "live" | "fallback"; provider: AIProviderName; model: string }> {
-  const apiKey = process.env.XAI_API_KEY;
+  const apiKey = getProviderApiKey("Grok");
   if (!apiKey) {
     return {
       result: buildAnalysisFromOpportunity(input.product, input.taskType),
@@ -199,7 +200,7 @@ export async function runPerplexityResearch(input: {
   savedTo: PerplexitySavedTo;
   responseLanguage: "zh" | "ko";
 }): Promise<{ item: Omit<PerplexityReportRecord, "id" | "user_id" | "created_at" | "updated_at">; mode: "live" | "pending_config" }> {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
+  const apiKey = getProviderApiKey("Perplexity");
   if (!apiKey) {
     return {
       item: buildPendingPerplexityRecord(input),
@@ -298,9 +299,9 @@ export async function runPerplexityResearch(input: {
 
 export async function testLiveProvider(providerName: AIProviderName) {
   if (providerName === "OpenAI") {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = getProviderApiKey("OpenAI");
     if (!apiKey) {
-      return { configured: false, status: "missing_key", message: "OPENAI_API_KEY is missing." };
+      return { configured: false, status: "missing_key", message: `${getPrimaryProviderEnvKey("OpenAI")} is missing.` };
     }
 
     try {
@@ -325,9 +326,9 @@ export async function testLiveProvider(providerName: AIProviderName) {
   }
 
   if (providerName === "Perplexity") {
-    const apiKey = process.env.PERPLEXITY_API_KEY;
+    const apiKey = getProviderApiKey("Perplexity");
     if (!apiKey) {
-      return { configured: false, status: "missing_key", message: "PERPLEXITY_API_KEY is missing." };
+      return { configured: false, status: "missing_key", message: `${getPrimaryProviderEnvKey("Perplexity")} is missing.` };
     }
 
     try {
@@ -360,9 +361,9 @@ export async function testLiveProvider(providerName: AIProviderName) {
   }
 
   if (providerName === "Gemini") {
-    const apiKey = process.env.GOOGLE_API_KEY;
+    const apiKey = getProviderApiKey("Gemini");
     if (!apiKey) {
-      return { configured: false, status: "missing_key", message: "GOOGLE_API_KEY is missing." };
+      return { configured: false, status: "missing_key", message: `${getPrimaryProviderEnvKey("Gemini")} is missing.` };
     }
 
     try {
@@ -395,9 +396,9 @@ export async function testLiveProvider(providerName: AIProviderName) {
   }
 
   if (providerName === "Grok") {
-    const apiKey = process.env.XAI_API_KEY;
+    const apiKey = getProviderApiKey("Grok");
     if (!apiKey) {
-      return { configured: false, status: "missing_key", message: "XAI_API_KEY is missing." };
+      return { configured: false, status: "missing_key", message: `${getPrimaryProviderEnvKey("Grok")} is missing.` };
     }
 
     try {
@@ -428,16 +429,8 @@ export async function testLiveProvider(providerName: AIProviderName) {
     }
   }
 
-  const envKey =
-    providerName === "Claude"
-      ? "ANTHROPIC_API_KEY"
-      : providerName === "Gemini"
-        ? "GOOGLE_API_KEY"
-        : providerName === "Grok"
-          ? "XAI_API_KEY"
-          : "";
-
-  const configured = Boolean(envKey && process.env[envKey]);
+  const envKey = getPrimaryProviderEnvKey(providerName);
+  const configured = Boolean(getProviderApiKey(providerName));
   return {
     configured,
     status: configured ? "ready" : "missing_key",

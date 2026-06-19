@@ -1,3 +1,4 @@
+import { hasProviderApiKey } from "@/lib/ai-env";
 import type { ProductOpportunityRecord } from "@/lib/product-opportunities";
 
 export type Locale = "zh" | "ko";
@@ -353,7 +354,7 @@ const taskPresets: TaskPreset[] = [
 
 export function buildDefaultProviders(now = new Date().toISOString()): AIProviderRecord[] {
   return providerPresets.map((preset, index) => {
-    const configured = Boolean(process.env[preset.envKey]);
+    const configured = hasProviderApiKey(preset.provider_name);
     return {
       id: `provider-${index + 1}`,
       user_id: null,

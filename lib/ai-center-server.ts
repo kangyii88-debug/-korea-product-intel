@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryProviderEnvKey, hasProviderApiKey } from "@/lib/ai-env";
 import {
   buildAnalysisFromOpportunity,
   buildDefaultProviders,
@@ -101,12 +102,12 @@ export async function upsertAIProvider(input: {
     user_id: user.id,
     provider_name: input.provider_name,
     enabled: input.enabled,
-    api_key_configured: Boolean(input.api_key_configured || process.env[getProviderEnvKey(input.provider_name)]),
+    api_key_configured: Boolean(input.api_key_configured || hasProviderApiKey(input.provider_name)),
     default_model: input.default_model,
     usage_type: input.usage_type,
     notes: input.notes ?? null,
     status: input.enabled
-      ? (input.api_key_configured || process.env[getProviderEnvKey(input.provider_name)] ? "ready" : "missing_key")
+      ? (input.api_key_configured || hasProviderApiKey(input.provider_name) ? "ready" : "missing_key")
       : "disabled",
   };
 
@@ -353,15 +354,15 @@ async function executeAnalysisWithProvider(
 ) {
   const model = modelName || provider.default_model;
 
-  if (provider.provider_name === "OpenAI" && process.env.OPENAI_API_KEY) {
+  if (provider.provider_name === "OpenAI" && hasProviderApiKey("OpenAI")) {
     return runOpenAIAnalysis({ taskType, product: sourceSnapshot, model });
   }
 
-  if (provider.provider_name === "Gemini" && process.env.GOOGLE_API_KEY) {
+  if (provider.provider_name === "Gemini" && hasProviderApiKey("Gemini")) {
     return runGeminiAnalysis({ taskType, product: sourceSnapshot, model });
   }
 
-  if (provider.provider_name === "Grok" && process.env.XAI_API_KEY) {
+  if (provider.provider_name === "Grok" && hasProviderApiKey("Grok")) {
     return runGrokAnalysis({ taskType, product: sourceSnapshot, model });
   }
 
@@ -495,16 +496,5 @@ export async function createPerplexityReport(input: {
 }
 
 function getProviderEnvKey(provider: AIProviderName) {
-  switch (provider) {
-    case "OpenAI":
-      return "OPENAI_API_KEY";
-    case "Claude":
-      return "ANTHROPIC_API_KEY";
-    case "Gemini":
-      return "GOOGLE_API_KEY";
-    case "Perplexity":
-      return "PERPLEXITY_API_KEY";
-    case "Grok":
-      return "XAI_API_KEY";
-  }
+  return getPrimaryProviderEnvKey(provider);
 }
