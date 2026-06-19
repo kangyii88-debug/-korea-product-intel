@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, FileText, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, PencilLine, ShieldAlert, Trash2, X } from "lucide-react";
 import { DecisionPill } from "@/components/decision-pill";
 import { useLocale } from "@/components/locale-provider";
 import { PageHeader } from "@/components/page-header";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { getDictionary } from "@/lib/i18n";
 import {
   analyzeProduct,
+  deleteLocalProduct,
   getProductById,
   REJECTION_REASONS,
   updateLocalProduct,
@@ -29,12 +31,15 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
 export function LocalReportView({ productId }: { productId: string }) {
+  const router = useRouter();
   const { locale } = useLocale();
   const t = getDictionary(locale);
   const [product, setProduct] = useState<LocalProduct | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [rejectReason, setRejectReason] = useState(REJECTION_REASONS[0]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<EditFormState | null>(null);
 
   useEffect(() => {
     setProduct(getProductById(productId));
@@ -79,6 +84,58 @@ export function LocalReportView({ productId }: { productId: string }) {
     setFeedback(`${t.report.messages.rejected} ${getRejectionReasonLabel(rejectReason, locale)}`);
   };
 
+  const openEdit = () => {
+    if (!product) return;
+    setEditForm({
+      productNameKo: product.productNameKo,
+      productNameZh: product.productNameZh,
+      platform: product.platform,
+      brand: product.brand,
+      category: product.category,
+      competitorUrl: product.competitorUrl,
+      price: String(product.price || 0),
+      estimatedMonthlySales: String(product.estimatedMonthlySales || 0),
+      reviewCount: String(product.reviewCount || 0),
+      rating: String(product.rating || 0),
+      notes: product.notes || "",
+      status: product.status,
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = () => {
+    if (!product || !editForm) return;
+
+    updateLocalProduct(product.id, (current) => ({
+      ...current,
+      productNameKo: editForm.productNameKo.trim() || current.productNameKo,
+      productNameZh: editForm.productNameZh.trim() || current.productNameZh,
+      platform: editForm.platform.trim() || current.platform,
+      brand: editForm.brand.trim(),
+      category: editForm.category.trim(),
+      competitorUrl: editForm.competitorUrl.trim(),
+      price: toNumber(editForm.price),
+      estimatedMonthlySales: toNumber(editForm.estimatedMonthlySales),
+      reviewCount: toNumber(editForm.reviewCount),
+      rating: toNumber(editForm.rating),
+      notes: editForm.notes.trim(),
+      status: editForm.status,
+    }));
+
+    setProduct(getProductById(product.id));
+    setEditOpen(false);
+    setFeedback(locale === "ko" ? "상품 정보가 수정되었습니다." : "商品信息已更新。");
+  };
+
+  const removeProduct = () => {
+    if (!product) return;
+    const confirmed = window.confirm(locale === "ko" ? "이 상품을 삭제할까요?" : "确定删除这个商品吗？");
+    if (!confirmed) return;
+
+    deleteLocalProduct(product.id);
+    router.push("/testing-db");
+  };
+
   const transferTo = (target: "rg" | "pb") => {
     const check = target === "rg" ? analysis.transferCheckRg : analysis.transferCheckPb;
     const label = target === "rg" ? t.report.actions.transferRg : t.report.actions.transferPb;
@@ -118,10 +175,22 @@ export function LocalReportView({ productId }: { productId: string }) {
     <div className="space-y-6">
       <PageHeader eyebrow={t.pages.report.eyebrow} title={t.pages.report.title} description={t.pages.report.description} />
       <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:px-8">
-      <Link href="/testing-db" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" />
-        {t.report.back}
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/testing-db" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+          {t.report.back}
+        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={openEdit}>
+            <PencilLine className="h-4 w-4" />
+            {locale === "ko" ? "수정" : "编辑"}
+          </Button>
+          <Button variant="destructive" onClick={removeProduct}>
+            <Trash2 className="h-4 w-4" />
+            {locale === "ko" ? "삭제" : "删除"}
+          </Button>
+        </div>
+      </div>
 
       {(analysis.riskRedlineLevel === "高风险红线" || analysis.riskRedlineLevel === "禁止推进") && (
         <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-rose-800">
@@ -304,8 +373,122 @@ export function LocalReportView({ productId }: { productId: string }) {
         </InfoCard>
       </section>
       </div>
+
+      {editOpen && editForm ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/22 backdrop-blur-[1px]">
+          <button type="button" className="h-full flex-1 cursor-default" onClick={() => setEditOpen(false)} aria-label="close edit" />
+          <div className="flex h-full w-full max-w-[620px] flex-col border-l border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-5 sm:px-6">
+              <div>
+                <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">{locale === "ko" ? "상품 수정" : "编辑商品"}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  {locale === "ko" ? "현재 상품의 핵심 정보를 바로 수정합니다." : "直接修改当前商品的核心信息。"}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setEditOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <EditField label={locale === "ko" ? "상품명 한국어" : "商品名称韩文"} value={editForm.productNameKo} onChange={(value) => setEditForm((current) => current ? { ...current, productNameKo: value } : current)} />
+                <EditField label={locale === "ko" ? "상품명 중국어" : "商品名称中文"} value={editForm.productNameZh} onChange={(value) => setEditForm((current) => current ? { ...current, productNameZh: value } : current)} />
+                <EditField label={locale === "ko" ? "플랫폼" : "平台"} value={editForm.platform} onChange={(value) => setEditForm((current) => current ? { ...current, platform: value } : current)} />
+                <EditField label={locale === "ko" ? "브랜드" : "品牌"} value={editForm.brand} onChange={(value) => setEditForm((current) => current ? { ...current, brand: value } : current)} />
+                <EditField label={locale === "ko" ? "카테고리" : "类目"} value={editForm.category} onChange={(value) => setEditForm((current) => current ? { ...current, category: value } : current)} />
+                <EditField label="Coupang URL" value={editForm.competitorUrl} onChange={(value) => setEditForm((current) => current ? { ...current, competitorUrl: value } : current)} />
+                <EditField label={locale === "ko" ? "판매가" : "售价"} value={editForm.price} onChange={(value) => setEditForm((current) => current ? { ...current, price: value } : current)} type="number" />
+                <EditField label={locale === "ko" ? "예상 월판매량" : "预计月销量"} value={editForm.estimatedMonthlySales} onChange={(value) => setEditForm((current) => current ? { ...current, estimatedMonthlySales: value } : current)} type="number" />
+                <EditField label={locale === "ko" ? "리뷰수" : "评论数"} value={editForm.reviewCount} onChange={(value) => setEditForm((current) => current ? { ...current, reviewCount: value } : current)} type="number" />
+                <EditField label={locale === "ko" ? "평점" : "评分"} value={editForm.rating} onChange={(value) => setEditForm((current) => current ? { ...current, rating: value } : current)} type="number" step="0.1" />
+                <div className="md:col-span-2">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-600">{locale === "ko" ? "현재 상태" : "当前状态"}</span>
+                    <select
+                      value={editForm.status}
+                      onChange={(event) => setEditForm((current) => current ? { ...current, status: event.target.value as ProductStatus } : current)}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-950/5"
+                    >
+                      {analysis.statusSuggestions.map((status) => (
+                        <option key={status} value={status}>
+                          {getStatusLabel(status, locale)}
+                        </option>
+                      ))}
+                      <option value={product.status}>{getStatusLabel(product.status, locale)}</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-600">{locale === "ko" ? "메모" : "备注"}</span>
+                    <textarea
+                      value={editForm.notes}
+                      onChange={(event) => setEditForm((current) => current ? { ...current, notes: event.target.value } : current)}
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-950/5"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 px-5 py-5 sm:px-6">
+              <Button variant="outline" onClick={() => setEditOpen(false)}>
+                {locale === "ko" ? "취소" : "取消"}
+              </Button>
+              <Button onClick={saveEdit}>{locale === "ko" ? "저장" : "保存"}</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+type EditFormState = {
+  productNameKo: string;
+  productNameZh: string;
+  platform: string;
+  brand: string;
+  category: string;
+  competitorUrl: string;
+  price: string;
+  estimatedMonthlySales: string;
+  reviewCount: string;
+  rating: string;
+  notes: string;
+  status: ProductStatus;
+};
+
+function EditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  step,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  step?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-slate-600">{label}</span>
+      <input
+        type={type}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-950/5"
+      />
+    </label>
+  );
+}
+
+function toNumber(value: string) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function TopMetric({ label, value, note }: { label: string; value: string; note: string }) {

@@ -254,6 +254,13 @@ export function updateLocalProduct(
   return next;
 }
 
+export function deleteLocalProduct(productId: string) {
+  const products = loadLocalProducts();
+  const next = products.filter((product) => product.id !== productId);
+  saveLocalProducts(next);
+  return next;
+}
+
 export function getProductById(productId: string) {
   return loadLocalProducts().find((item) => item.id === productId) ?? null;
 }
