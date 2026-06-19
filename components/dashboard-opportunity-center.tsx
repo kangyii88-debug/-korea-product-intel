@@ -314,7 +314,8 @@ export function DashboardOpportunityCenter() {
       }
 
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
-      const parsedItems = rows
+      const normalizedRows = rows.map((row) => normalizeImportedRow(row));
+      const parsedItems = normalizedRows
         .map((row) => mapImportRowToOpportunitySafe(row))
         .filter((item): item is ProductOpportunityInput => Boolean(item));
 
@@ -2027,6 +2028,47 @@ function looksLikeBrokenEncoding(value: string) {
   return ["Ã", "Â", "ì", "ë", "ì¡", "ìƒ", "ë¬", "ì"].some((fragment) => value.includes(fragment));
 }
 
+function normalizeImportedRow(row: Record<string, unknown>) {
+  const normalizedEntries = Object.entries(row).map(([key, value]) => [normalizeImportHeader(key), value] as const);
+  const normalizedRow = Object.fromEntries(normalizedEntries) as Record<string, unknown>;
+
+  const aliasMap: Record<string, string[]> = {
+    title: ["product_name_ko", "product_name_zh", "商品名称", "商品名称韩文", "商品名称中文", "상품명"],
+    keyword: ["keywords", "商品关键词", "关键词", "키워드"],
+    coupang_url: ["product_url", "coupanglink", "coupang竞品链接", "coupang链接", "쿠팡링크"],
+    image_url: ["product_image_url", "商品图片url", "商品图片链接", "이미지링크"],
+    business_type: ["recommended_business_type", "商品方向", "推荐方向", "추천방향"],
+    price: ["competitor_price_krw", "竞品售价krw", "竞品售价", "현재판매가"],
+    estimated_purchase_cost: ["target_supply_price_krw", "目标供货价krw", "目标供货价"],
+    estimated_shipping_cost: ["international_shipping_krw", "国际物流krw", "国际物流"],
+    estimated_local_delivery_cost: ["korea_local_shipping_krw", "韩国本地物流krw", "韩国本地物流"],
+    platform_fee_rate: ["coupang_fee_rate", "coupang手续费%", "coupang手续费"],
+    estimated_ad_cost: ["ad_cost_krw", "广告费krw", "广告费"],
+    estimated_sale_price: ["competitor_price_krw", "预计售价", "目标售价"],
+    notes: ["collection_note", "采集备注", "备注", "메모"],
+    competitor_price_range: ["price_range", "价格区间", "竞品价格区间"],
+    review_issue_summary: ["review_analysis_summary", "评论分析总结", "评论集中问题"],
+    negative_review_keywords: ["review_samples", "评论/差评样本", "差评关键词"],
+    improvement_points: ["consumer_pain_points", "product_development_direction", "消费者痛点", "产品开发方向", "可改进点"],
+  };
+
+  for (const [targetKey, aliases] of Object.entries(aliasMap)) {
+    if (normalizedRow[targetKey] !== undefined && String(normalizedRow[targetKey] ?? "").trim()) continue;
+
+    const matchedKey = aliases.find((alias) => {
+      const normalizedAlias = normalizeImportHeader(alias);
+      const value = normalizedRow[normalizedAlias];
+      return value !== undefined && String(value ?? "").trim();
+    });
+
+    if (matchedKey) {
+      normalizedRow[targetKey] = normalizedRow[normalizeImportHeader(matchedKey)];
+    }
+  }
+
+  return normalizedRow;
+}
+
 function mapImportRowToOpportunitySafe(row: Record<string, unknown>): ProductOpportunityInput | null {
   const title = readImportString(row, ["title", "name", "product_name", "product title", "商品名", "상품명", "제품명"]);
   if (!title) return null;
@@ -2097,7 +2139,12 @@ function readImportBoolean(row: Record<string, unknown>, candidates: string[], f
 }
 
 function normalizeImportHeader(value: string) {
-  return value.toLowerCase().replace(/\s+/g, "").replace(/[_-]/g, "");
+  return value
+    .replace(/^\uFEFF/, "")
+    .replace(/[\u200B-\u200D\u2060]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[_-]/g, "");
 }
 
 function mapImportCategory(value: string): OpportunityCategory {
