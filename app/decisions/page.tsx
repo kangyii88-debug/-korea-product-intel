@@ -41,7 +41,7 @@ export default function DecisionsPage() {
         title={t.pages.decisions.title}
         description={t.pages.decisions.description}
       />
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-5 py-8 sm:px-8">
+      <div className="flex w-full flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10 2xl:px-12">
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <StatCard label={getDirectionLabel("Rocket Growth", locale)} value={directions.filter((item) => item === "Rocket Growth").length} note={locale === "ko" ? "RG 프로젝트 우선 후보입니다." : "优先进入 RG 项目池。"} tone="success" />
           <StatCard label={getDirectionLabel("PB", locale)} value={directions.filter((item) => item === "PB").length} note={locale === "ko" ? "PB 방향 검토 후보입니다." : "优先进入 PB 项目池。"} />

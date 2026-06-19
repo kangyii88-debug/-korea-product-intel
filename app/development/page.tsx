@@ -36,7 +36,7 @@ export default function DevelopmentPage() {
         title={t.pages.development.title}
         description={t.pages.development.description}
       />
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-5 py-8 sm:px-8">
+      <div className="flex w-full flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10 2xl:px-12">
         {candidates.length === 0 ? (
           <EmptyState
             title={t.pages.development.emptyTitle}

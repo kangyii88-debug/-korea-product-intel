@@ -20,7 +20,7 @@ export function EmptyModulePage({
   return (
     <>
       <PageHeader eyebrow={page.eyebrow} title={page.title} description={page.description} />
-      <div className="mx-auto w-full max-w-[1240px] px-5 py-8 sm:px-8">
+      <div className="w-full px-5 py-8 sm:px-8 lg:px-10 2xl:px-12">
         <EmptyState
           icon={<Boxes className="h-6 w-6" />}
           title={t.pages.dashboard.emptyTitle}

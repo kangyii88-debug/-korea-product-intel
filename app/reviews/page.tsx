@@ -45,7 +45,7 @@ export default function ReviewsPage() {
         title={t.pages.reviews.title}
         description={t.pages.reviews.description}
       />
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-5 py-8 sm:px-8">
+      <div className="flex w-full flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10 2xl:px-12">
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label={t.pages.reviews.metrics.total} value={formatNumber(reviewState.totalReviews)} note={t.pages.reviews.notes.total} />
           <StatCard label={t.pages.reviews.metrics.issues} value={reviewState.highFrequencyIssues} note={t.pages.reviews.notes.issues} tone="warning" />

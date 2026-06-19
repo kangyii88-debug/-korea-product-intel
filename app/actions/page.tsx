@@ -56,7 +56,7 @@ export default function ActionsPage() {
         description={t.pages.actions.description}
         action={<Button variant="outline">{t.common.exportReport}</Button>}
       />
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-5 py-8 sm:px-8">
+      <div className="flex w-full flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10 2xl:px-12">
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label={t.pages.actions.stats.rg} value={allActions.filter((item) => String(item) === "饔у뀯 Rocket Growth 窈밭쎅").length} note={locale === "ko" ? "확인 대기 중인 RG 전환 액션입니다." : "待确认的 RG 项目转入动作。"} />
           <StatCard label={t.pages.actions.stats.pb} value={allActions.filter((item) => String(item) === "饔у뀯 PB 窈밭쎅").length} note={locale === "ko" ? "확인 대기 중인 PB 전환 액션입니다." : "待确认的 PB 项目转入动作。"} />
