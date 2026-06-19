@@ -7,7 +7,6 @@ import {
   FolderSync,
   PackageSearch,
   Radar,
-  Search,
   ShieldAlert,
   ShieldCheck,
   Truck,
@@ -33,14 +32,7 @@ import {
 } from "@/lib/product-risk-local";
 
 type SampleRow = Record<string, unknown>;
-
-type Filters = {
-  query: string;
-  overall: "all" | RiskLevel;
-  certification: "all" | RiskLevel;
-  logistics: "all" | RiskLevel;
-  action: "all" | RiskAction;
-};
+const PAGE_SIZE = 6;
 
 export function RiskLogisticsWorkbench() {
   const { locale } = useLocale();
@@ -48,13 +40,7 @@ export function RiskLogisticsWorkbench() {
   const [items, setItems] = useState<ProductRiskAssessmentRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({
-    query: "",
-    overall: "all",
-    certification: "all",
-    logistics: "all",
-    action: "all",
-  });
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const loaded = loadLocalRiskAssessments();
@@ -67,40 +53,26 @@ export function RiskLogisticsWorkbench() {
     seed();
   }, [items.length]);
 
-  const filtered = useMemo(() => {
-    const keyword = filters.query.trim().toLowerCase();
-    return items.filter((item) => {
-      const text = [
-        item.product_name_ko,
-        item.product_name_zh,
-        item.brand,
-        item.category,
-        item.consumer_pain_points,
-        item.risk_reason,
-        item.current_status,
-      ]
-        .join(" ")
-        .toLowerCase();
+  const filtered = items;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
 
-      return (
-        (!keyword || text.includes(keyword)) &&
-        (filters.overall === "all" || item.overall_risk_level === filters.overall) &&
-        (filters.certification === "all" || item.certification_risk_level === filters.certification) &&
-        (filters.logistics === "all" || item.logistics_risk_level === filters.logistics) &&
-        (filters.action === "all" || item.recommended_action === filters.action)
-      );
-    });
-  }, [filters, items]);
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     if (!filtered.length) {
       setSelectedId(null);
       return;
     }
-    if (!selectedId || !filtered.some((item) => item.id === selectedId)) {
-      setSelectedId(filtered[0].id);
+    if (!selectedId || !pagedItems.some((item) => item.id === selectedId)) {
+      setSelectedId(pagedItems[0]?.id ?? filtered[0].id);
     }
-  }, [filtered, selectedId]);
+  }, [filtered, pagedItems, selectedId]);
 
   const selected = filtered.find((item) => item.id === selectedId) ?? items.find((item) => item.id === selectedId) ?? null;
 
@@ -194,71 +166,10 @@ export function RiskLogisticsWorkbench() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_440px]">
-          <div className="space-y-6">
-            <SectionCard title={t.filters.title} description={t.filters.description}>
-              <div className="flex flex-col gap-4">
-                <div className="relative max-w-xl">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={filters.query}
-                    onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
-                    placeholder={t.filters.search}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
-                  />
-                </div>
-                <div className="grid gap-3 md:grid-cols-4">
-                  <SelectField
-                    label={t.filters.overall}
-                    value={filters.overall}
-                    onChange={(value) => setFilters((current) => ({ ...current, overall: value as Filters["overall"] }))}
-                    options={[
-                      { value: "all", label: t.filters.all },
-                      { value: "high", label: t.levels.high },
-                      { value: "medium", label: t.levels.medium },
-                      { value: "low", label: t.levels.low },
-                    ]}
-                  />
-                  <SelectField
-                    label={t.filters.certification}
-                    value={filters.certification}
-                    onChange={(value) => setFilters((current) => ({ ...current, certification: value as Filters["certification"] }))}
-                    options={[
-                      { value: "all", label: t.filters.all },
-                      { value: "high", label: t.levels.high },
-                      { value: "medium", label: t.levels.medium },
-                      { value: "low", label: t.levels.low },
-                    ]}
-                  />
-                  <SelectField
-                    label={t.filters.logistics}
-                    value={filters.logistics}
-                    onChange={(value) => setFilters((current) => ({ ...current, logistics: value as Filters["logistics"] }))}
-                    options={[
-                      { value: "all", label: t.filters.all },
-                      { value: "high", label: t.levels.high },
-                      { value: "medium", label: t.levels.medium },
-                      { value: "low", label: t.levels.low },
-                    ]}
-                  />
-                  <SelectField
-                    label={t.filters.action}
-                    value={filters.action}
-                    onChange={(value) => setFilters((current) => ({ ...current, action: value as Filters["action"] }))}
-                    options={[
-                      { value: "all", label: t.filters.all },
-                      { value: "push", label: t.actions.push },
-                      { value: "conditional", label: t.actions.conditional },
-                      { value: "observe", label: t.actions.observe },
-                      { value: "pause", label: t.actions.pause },
-                    ]}
-                  />
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title={t.list.title} description={t.list.description}>
-              <div className="space-y-3">
-                {filtered.map((item) => (
+          <SectionCard title={t.list.title} description={t.list.description} className="min-w-0 overflow-hidden">
+            <div className="flex min-h-[820px] flex-col">
+              <div className="flex-1 space-y-3 overflow-hidden">
+                {pagedItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -286,10 +197,29 @@ export function RiskLogisticsWorkbench() {
                 ))}
                 {!filtered.length ? <EmptyPanel message={t.list.empty} /> : null}
               </div>
-            </SectionCard>
-          </div>
+              {filtered.length > 0 ? (
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-500">
+                    {locale === "ko" ? `${page} / ${totalPages} 페이지` : `第 ${page} / ${totalPages} 页`}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      {locale === "ko" ? "이전 페이지" : "上一页"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    >
+                      {locale === "ko" ? "다음 페이지" : "下一页"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </SectionCard>
 
-          <Card className="h-fit overflow-hidden">
+          <Card className="sticky top-6 min-h-[820px] overflow-hidden">
             <CardHeader className="space-y-4">
               {selected ? (
                 <>

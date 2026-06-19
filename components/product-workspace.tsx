@@ -75,6 +75,7 @@ const DIRECTION_OPTIONS = ["all", "Rocket Growth", "PB", "Rocket Growth + PB", "
 const SCORE_OPTIONS = ["all", "85+", "70-84", "60-69", "<60"] as const;
 const RISK_OPTIONS = ["all", "低风险", "中风险", "高风险"] as const;
 const PROFIT_OPTIONS = ["all", "35+", "20-34", "<20"] as const;
+const PAGE_SIZE = 6;
 
 export function ProductWorkspace() {
   const { locale } = useLocale();
@@ -94,6 +95,8 @@ export function ProductWorkspace() {
   const [busySample, setBusySample] = useState<SampleName | null>(null);
   const [importingFile, setImportingFile] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [actionNotice, setActionNotice] = useState<BannerState>(null);
+  const [page, setPage] = useState(1);
 
   const copy = locale === "ko" ? KO_COPY : ZH_COPY;
 
@@ -178,16 +181,34 @@ export function ProductWorkspace() {
     statusFilter,
   ]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, bucket, directionFilter, riskFilter, scoreFilter, profitFilter, statusFilter, onlyTransferReady, onlyOwned]);
+
   useEffect(() => {
     if (!filtered.length) {
       setSelectedId(null);
       return;
     }
 
-    if (!selectedId || !filtered.some((item) => item.product.id === selectedId)) {
-      setSelectedId(filtered[0].product.id);
+    if (!selectedId || !pagedItems.some((item) => item.product.id === selectedId)) {
+      setSelectedId(pagedItems[0]?.product.id ?? filtered[0].product.id);
     }
-  }, [filtered, selectedId]);
+  }, [filtered, pagedItems, selectedId]);
+
+  useEffect(() => {
+    setActionNotice(null);
+  }, [selectedId]);
 
   const selected = useMemo(
     () => filtered.find((item) => item.product.id === selectedId) ?? analyzed.find((item) => item.product.id === selectedId) ?? null,
@@ -198,6 +219,12 @@ export function ProductWorkspace() {
     startTransition(() => {
       setProducts(loadLocalProducts());
     });
+  }
+
+  function pushActionNotice(tone: NonNullable<BannerState>["tone"], message: string) {
+    const next = { tone, message } satisfies NonNullable<BannerState>;
+    setBanner(next);
+    setActionNotice(next);
   }
 
   async function importSample(name: SampleName) {
@@ -265,7 +292,7 @@ export function ProductWorkspace() {
     if (!selected) return;
     const next = deleteLocalProduct(selected.product.id);
     setProducts(next);
-    setBanner({ tone: "success", message: copy.messages.deleted });
+    pushActionNotice("success", copy.messages.deleted);
   }
 
   function onExport() {
@@ -289,7 +316,7 @@ export function ProductWorkspace() {
     if (!selected) return;
     const next = updateLocalProduct(selected.product.id, (product) => ({ ...product, status }));
     setProducts(next);
-    setBanner({ tone: "success", message: copy.messages.statusUpdated });
+    pushActionNotice("success", `${copy.messages.statusUpdated} ${getStatusLabel(status, locale)}`);
   }
 
   function onTransfer(kind: "rg" | "pb") {
@@ -297,18 +324,17 @@ export function ProductWorkspace() {
 
     const readiness = kind === "rg" ? selected.analysis.transferCheckRg : selected.analysis.transferCheckPb;
     if (!readiness.ready) {
-      setBanner({
-        tone: "danger",
-        message: `${copy.messages.transferBlocked}${readiness.missing.join(" / ")}`,
-      });
+      pushActionNotice("danger", `${copy.messages.transferBlocked}${readiness.missing.join(" / ")}`);
       return;
     }
 
     createLocalProductOpportunity(buildOpportunityInput(selected.product, selected.analysis, kind));
-    setBanner({
-      tone: "success",
-      message: kind === "rg" ? copy.messages.transferRgDone : copy.messages.transferPbDone,
-    });
+    const next = updateLocalProduct(selected.product.id, (product) => ({
+      ...product,
+      status: PRODUCT_STATUS_OPTIONS[10],
+    }));
+    setProducts(next);
+    pushActionNotice("success", kind === "rg" ? copy.messages.transferRgDone : copy.messages.transferPbDone);
   }
 
   return (
@@ -516,13 +542,15 @@ export function ProductWorkspace() {
           primaryHref="/products/new"
         />
       ) : (
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
+        <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
           <SectionCard
             title={copy.list.title}
             description={interpolate(copy.list.description, { count: String(filtered.length), total: String(products.length) })}
+            className="min-w-0 overflow-hidden"
           >
-            <div className="space-y-3">
-              {filtered.map(({ product, analysis }) => {
+            <div className="flex min-h-[820px] flex-col">
+              <div className="flex-1 space-y-3 overflow-hidden">
+              {pagedItems.map(({ product, analysis }) => {
                 const selectedCard = selectedId === product.id;
                 const transferReady = analysis.transferCheckRg.ready || analysis.transferCheckPb.ready;
 
@@ -531,7 +559,7 @@ export function ProductWorkspace() {
                     key={product.id}
                     type="button"
                     onClick={() => setSelectedId(product.id)}
-                    className={`grid w-full gap-4 rounded-[18px] border p-5 text-left transition-colors lg:grid-cols-[minmax(0,1.7fr)_150px_110px_110px_120px] ${
+                    className={`grid min-w-0 w-full gap-4 rounded-[18px] border p-5 text-left transition-colors lg:grid-cols-[minmax(0,1.7fr)_150px_110px_110px_120px] ${
                       selectedCard
                         ? "border-slate-900 bg-slate-950 text-white"
                         : "border-slate-200 bg-slate-50/55 hover:bg-slate-50"
@@ -578,10 +606,37 @@ export function ProductWorkspace() {
                   </button>
                 );
               })}
+
+              {!filtered.length ? (
+                <div className="flex min-h-[320px] items-center justify-center rounded-[18px] border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center text-sm text-slate-500">
+                  {locale === "ko" ? "현재 조건에 맞는 테스트 상품이 없습니다." : "当前筛选条件下没有测试商品。"}
+                </div>
+              ) : null}
+              </div>
+
+              {filtered.length > 0 ? (
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-500">
+                    {locale === "ko" ? `${page} / ${totalPages} 페이지` : `第 ${page} / ${totalPages} 页`}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      {locale === "ko" ? "이전 페이지" : "上一页"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    >
+                      {locale === "ko" ? "다음 페이지" : "下一页"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </SectionCard>
 
-          <Card className="h-fit overflow-hidden">
+          <Card className="sticky top-6 z-20 min-h-[820px] overflow-hidden">
             <CardHeader className="space-y-4">
               {selected ? (
                 <>
@@ -619,6 +674,20 @@ export function ProductWorkspace() {
 
             {selected ? (
               <CardContent className="space-y-6">
+                {actionNotice ? (
+                  <div
+                    className={`rounded-2xl border px-4 py-3 text-sm ${
+                      actionNotice.tone === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : actionNotice.tone === "danger"
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : "border-sky-200 bg-sky-50 text-sky-700"
+                    }`}
+                  >
+                    {actionNotice.message}
+                  </div>
+                ) : null}
+
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-slate-950">{copy.detail.decision}</h4>
                   <div className="flex flex-wrap gap-2">
@@ -632,13 +701,21 @@ export function ProductWorkspace() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-slate-950">{copy.detail.actions}</h4>
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => onTransfer("rg")} variant="outline">
+                    <Button
+                      onClick={() => onTransfer("rg")}
+                      variant="outline"
+                      className="relative z-30"
+                    >
                       {copy.actions.transferRg}
                     </Button>
-                    <Button onClick={() => onTransfer("pb")} variant="outline">
+                    <Button
+                      onClick={() => onTransfer("pb")}
+                      variant="outline"
+                      className="relative z-30"
+                    >
                       {copy.actions.transferPb}
                     </Button>
-                    <Button onClick={onDeleteSelected} variant="outline">
+                    <Button onClick={onDeleteSelected} variant="outline" className="relative z-30">
                       <Trash2 className="h-4 w-4" />
                       {copy.actions.delete}
                     </Button>
