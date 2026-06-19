@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight,
+  ArrowRightLeft,
+  Boxes,
   Flame,
-  LineChart,
+  FolderSync,
+  PackagePlus,
   PackageSearch,
-  RefreshCcw,
+  Search,
   ShieldAlert,
   Sparkles,
-  Star,
+  Target,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
@@ -18,123 +20,305 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useLocale } from "@/components/locale-provider";
+import {
+  buildHotProductFromSampleRow,
+  loadLocalHotProductIntelligence,
+  mergeHotProductIntelligence,
+  monthlyPurchaseLevel,
+  replaceLocalHotProductIntelligence,
+  updateHotProductItem,
+  type HotActionStatus,
+  type HotProductIntelligenceItem,
+  type HotRiskLevel,
+  type MonthlyPurchaseLevel,
+} from "@/lib/hot-product-intelligence-local";
+import {
+  mergeCompetitorLibraryItems,
+  loadLocalCompetitorLibrary,
+  replaceLocalCompetitorLibrary,
+  type CompetitorLibraryItem,
+} from "@/lib/competitor-library-local";
+import { buildProductFromForm, upsertLocalProduct } from "@/lib/local-products";
 import { createLocalProductOpportunity } from "@/lib/product-opportunities-local";
 
-type HotProductRow = Record<string, unknown>;
+type SampleRow = Record<string, unknown>;
 
-type HotProductInsight = {
-  id: string;
-  productNameKo: string;
-  productNameZh: string;
-  coupangUrl: string;
-  imageUrl: string;
-  brand: string;
+type Filters = {
+  query: string;
+  purchase: "all" | MonthlyPurchaseLevel;
   category: string;
-  reviewCount: number;
-  rating: number;
-  price: number;
-  monthlySales: number;
-  monthlyPurchaseBadge: string;
-  painPoints: string;
-  marketAnalysis: string;
-  priceRange: string;
-  recommendationType: string;
-  nextAction: string;
-  opportunityLevel: "low" | "medium" | "high";
-  competitionLevel: "low" | "medium" | "high";
-  riskLevel: "low" | "medium" | "high";
+  delivery: string;
+  seller: string;
+  action: "all" | HotActionStatus;
+  risk: "all" | HotRiskLevel;
+  seasonality: "all" | HotProductIntelligenceItem["seasonality_status"];
+  source: "all" | HotProductIntelligenceItem["source_type"];
 };
 
 export function HotProductsIntelligenceWorkbench() {
   const { locale } = useLocale();
   const t = locale === "ko" ? KO_COPY : ZH_COPY;
-  const [items, setItems] = useState<HotProductInsight[]>([]);
+  const [items, setItems] = useState<HotProductIntelligenceItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>({
+    query: "",
+    purchase: "all",
+    category: "all",
+    delivery: "all",
+    seller: "all",
+    action: "all",
+    risk: "all",
+    seasonality: "all",
+    source: "all",
+  });
 
   useEffect(() => {
-    void load();
+    const loaded = loadLocalHotProductIntelligence();
+    setItems(loaded);
+    setSelectedId(loaded[0]?.id ?? null);
   }, []);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/testing-db-samples?name=coupang_hot_products_50", { cache: "no-store" });
-      const payload = (await response.json()) as { items?: HotProductRow[] };
-      const mapped = (payload.items ?? []).map(mapHotProductRow);
-      setItems(mapped);
-      setSelectedId(mapped[0]?.id ?? null);
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    if (items.length > 0) return;
+    void seed();
+  }, [items.length]);
 
-  const selected = items.find((item) => item.id === selectedId) ?? null;
+  const filtered = useMemo(() => {
+    const keyword = filters.query.trim().toLowerCase();
+    return items.filter((item) => {
+      const text = [
+        item.product_name_ko,
+        item.product_name_zh,
+        item.brand,
+        item.category,
+        item.recommendation_type,
+        item.recommended_destination,
+        item.next_action,
+        item.consumer_pain_points,
+        item.market_analysis,
+        item.risk_tags.join(" "),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        (!keyword || text.includes(keyword)) &&
+        (filters.purchase === "all" || item.monthly_purchase_level === filters.purchase) &&
+        (filters.category === "all" || item.category === filters.category) &&
+        (filters.delivery === "all" || item.delivery_type === filters.delivery) &&
+        (filters.seller === "all" || item.seller_type === filters.seller) &&
+        (filters.action === "all" || item.action_status === filters.action) &&
+        (filters.risk === "all" || item.risk_level === filters.risk) &&
+        (filters.seasonality === "all" || item.seasonality_status === filters.seasonality) &&
+        (filters.source === "all" || item.source_type === filters.source)
+      );
+    });
+  }, [filters, items]);
+
+  useEffect(() => {
+    if (!filtered.length) {
+      setSelectedId(null);
+      return;
+    }
+    if (!selectedId || !filtered.some((item) => item.id === selectedId)) {
+      setSelectedId(filtered[0].id);
+    }
+  }, [filtered, selectedId]);
+
+  const selected = filtered.find((item) => item.id === selectedId) ?? items.find((item) => item.id === selectedId) ?? null;
+  const categories = useMemo(() => uniqueValues(items.map((item) => item.category)), [items]);
+  const deliveries = useMemo(() => uniqueValues(items.map((item) => item.delivery_type)), [items]);
+  const sellers = useMemo(() => uniqueValues(items.map((item) => item.seller_type)), [items]);
 
   const metrics = useMemo(() => {
-    const highOpportunity = items.filter((item) => item.opportunityLevel === "high").length;
-    const highCompetition = items.filter((item) => item.competitionLevel === "high").length;
-    const strongBadge = items.filter((item) => item.monthlyPurchaseBadge.includes("1000") || item.monthlyPurchaseBadge.includes("1,000")).length;
-    const pbFit = items.filter((item) => item.recommendationType.toLowerCase().includes("pb")).length;
-    const rgFit = items.filter((item) => item.recommendationType.toLowerCase().includes("rocket")).length;
-    const highRisk = items.filter((item) => item.riskLevel === "high").length;
-    const avgRating = items.length ? (items.reduce((sum, item) => sum + item.rating, 0) / items.length).toFixed(1) : "0.0";
-    const avgReviews = items.length ? Math.round(items.reduce((sum, item) => sum + item.reviewCount, 0) / items.length) : 0;
-
     return [
-      { label: t.metrics.total, value: String(items.length), note: t.metrics.totalNote, tone: "default" as const, icon: <PackageSearch className="h-4 w-4" /> },
-      { label: t.metrics.opportunity, value: String(highOpportunity), note: t.metrics.opportunityNote, tone: "success" as const, icon: <Sparkles className="h-4 w-4" /> },
-      { label: t.metrics.badge, value: String(strongBadge), note: t.metrics.badgeNote, tone: "success" as const, icon: <Flame className="h-4 w-4" /> },
-      { label: t.metrics.competition, value: String(highCompetition), note: t.metrics.competitionNote, tone: "warning" as const, icon: <LineChart className="h-4 w-4" /> },
-      { label: t.metrics.rg, value: String(rgFit), note: t.metrics.rgNote, tone: "default" as const, icon: <ArrowRight className="h-4 w-4" /> },
-      { label: t.metrics.pb, value: String(pbFit), note: t.metrics.pbNote, tone: "default" as const, icon: <ArrowRight className="h-4 w-4" /> },
-      { label: t.metrics.risk, value: String(highRisk), note: t.metrics.riskNote, tone: "danger" as const, icon: <ShieldAlert className="h-4 w-4" /> },
-      { label: t.metrics.rating, value: `${avgRating} / ${avgReviews}`, note: t.metrics.ratingNote, tone: "default" as const, icon: <Star className="h-4 w-4" /> },
+      {
+        label: t.metrics.total,
+        value: items.length,
+        note: t.metrics.totalNote,
+        icon: <PackageSearch className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.purchase1000,
+        value: items.filter((item) => ["over_1000", "over_3000", "over_5000", "over_10000"].includes(item.monthly_purchase_level)).length,
+        note: t.metrics.purchase1000Note,
+        tone: "success" as const,
+        icon: <Flame className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.purchase5000,
+        value: items.filter((item) => ["over_5000", "over_10000"].includes(item.monthly_purchase_level)).length,
+        note: t.metrics.purchase5000Note,
+        tone: "success" as const,
+        icon: <Sparkles className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.highOpportunity,
+        value: items.filter((item) => item.opportunity_level === "high").length,
+        note: t.metrics.highOpportunityNote,
+        tone: "success" as const,
+        icon: <Target className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.highRisk,
+        value: items.filter((item) => item.risk_level === "high").length,
+        note: t.metrics.highRiskNote,
+        tone: "danger" as const,
+        icon: <ShieldAlert className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.toCompetitor,
+        value: items.filter((item) => item.imported_to_competitor_library).length,
+        note: t.metrics.toCompetitorNote,
+        icon: <Boxes className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.toTesting,
+        value: items.filter((item) => item.imported_to_product_test).length,
+        note: t.metrics.toTestingNote,
+        icon: <PackagePlus className="h-4 w-4" />,
+      },
+      {
+        label: t.metrics.toOpportunity,
+        value: items.filter((item) => item.imported_to_opportunity_pool).length,
+        note: t.metrics.toOpportunityNote,
+        icon: <ArrowRightLeft className="h-4 w-4" />,
+      },
     ];
   }, [items, t]);
 
-  function transferToOpportunity(item: HotProductInsight) {
+  async function seed() {
+    const sampleModule = await import("@/data/coupang_hot_products_50.json");
+    const mapped = ((sampleModule.default as SampleRow[]) ?? []).map(buildHotProductFromSampleRow);
+    const next = mergeHotProductIntelligence([], mapped);
+    replaceLocalHotProductIntelligence(next);
+    setItems(next);
+    setSelectedId(next[0]?.id ?? null);
+    setBanner(t.messages.seeded);
+  }
+
+  function persist(next: HotProductIntelligenceItem[], message?: string) {
+    replaceLocalHotProductIntelligence(next);
+    setItems(next);
+    if (message) setBanner(message);
+  }
+
+  function refreshFromBundle() {
+    void seed();
+  }
+
+  function transferToCompetitor(item: HotProductIntelligenceItem) {
+    const current = loadLocalCompetitorLibrary();
+    const nextLibrary = mergeCompetitorLibraryItems(current, [mapHotToCompetitor(item)]);
+    replaceLocalCompetitorLibrary(nextLibrary);
+    persist(
+      updateHotProductItem(items, item.id, (currentItem) => ({
+        ...currentItem,
+        imported_to_competitor_library: true,
+        action_status: "transferred_competitor",
+      })),
+      t.messages.toCompetitor,
+    );
+  }
+
+  function transferToTesting(item: HotProductIntelligenceItem) {
+    upsertLocalProduct(
+      buildProductFromForm({
+        productNameKo: item.product_name_ko,
+        productNameZh: item.product_name_zh,
+        brand: item.brand,
+        category: item.category,
+        competitorUrl: item.coupang_url,
+        image: item.image_url,
+        price: String(item.competitor_price_krw),
+        discountPrice: String(item.competitor_price_krw),
+        competitorSalePriceKrw: String(item.competitor_price_krw),
+        reviewCount: String(item.review_count),
+        rating: String(item.rating),
+        deliveryType: item.delivery_type,
+        sellerType: item.seller_type,
+        marketAnalysis: item.market_analysis,
+        priceRange: item.price_range,
+        reviewSummary: item.bad_review_samples.join(" / "),
+        consumerPainPoints: item.consumer_pain_points,
+        productDevelopmentDirection: item.next_action,
+        recommendationReason: item.recommended_destination,
+        sampleDevelopmentAdvice: item.next_action,
+        notes: item.notes,
+      }),
+    );
+
+    persist(
+      updateHotProductItem(items, item.id, (currentItem) => ({
+        ...currentItem,
+        imported_to_product_test: true,
+        action_status: "transferred_testing",
+      })),
+      t.messages.toTesting,
+    );
+  }
+
+  function transferToOpportunity(item: HotProductIntelligenceItem) {
     createLocalProductOpportunity({
-      title: item.productNameZh || item.productNameKo,
+      title: item.product_name_zh || item.product_name_ko,
       sku: "",
-      keyword: item.category,
+      keyword: item.keywords.join(", "),
       category: "other",
-      business_type: item.recommendationType.toLowerCase().includes("pb") ? "pb_supply" : item.recommendationType.toLowerCase().includes("rocket") ? "rocket_growth" : "general",
-      coupang_url: item.coupangUrl,
-      image_url: item.imageUrl,
-      price: item.price,
-      review_count: item.reviewCount,
+      business_type: inferBusinessType(item.recommendation_type),
+      coupang_url: item.coupang_url,
+      image_url: item.image_url,
+      price: item.competitor_price_krw,
+      review_count: item.review_count,
       rating: item.rating,
-      competitor_count: item.competitionLevel === "high" ? 8 : item.competitionLevel === "medium" ? 5 : 2,
-      estimated_purchase_cost: Math.round(item.price * 0.38),
+      competitor_count: item.competition_level === "high" ? 9 : item.competition_level === "medium" ? 5 : 2,
+      estimated_purchase_cost: Math.round(item.competitor_price_krw * 0.38),
       estimated_shipping_cost: 3800,
       estimated_local_delivery_cost: 3200,
       platform_fee_rate: 11.9,
       estimated_ad_cost: 600,
-      estimated_sale_price: item.price,
-      market_heat: item.opportunityLevel,
-      competition_level: item.competitionLevel,
-      kc_risk: item.riskLevel,
-      volume_weight_risk: "low",
-      return_risk: item.riskLevel,
-      negative_review_risk: item.riskLevel,
-      price_war_risk: item.competitionLevel,
-      supply_chain_risk: "medium",
-      notes: [item.marketAnalysis, item.painPoints].filter(Boolean).join("\n"),
-      status: "testable",
+      estimated_sale_price: item.competitor_price_krw,
+      market_heat: item.opportunity_level,
+      competition_level: item.competition_level,
+      kc_risk: item.risk_level,
+      volume_weight_risk: item.risk_tags.includes("易碎物流") ? "high" : "low",
+      return_risk: item.risk_level,
+      negative_review_risk: item.risk_level,
+      price_war_risk: item.competition_level,
+      supply_chain_risk: item.risk_tags.includes("电子/KC") ? "high" : "medium",
+      notes: [item.market_analysis, item.consumer_pain_points, item.hot_reason].filter(Boolean).join("\n"),
+      status: item.risk_level === "high" ? "paused" : "testable",
       next_action: "collect_competitors",
-      demand_stability: item.monthlyPurchaseBadge,
-      seasonality: "",
-      long_term_fit: item.recommendationType.toLowerCase().includes("pb"),
-      short_term_test_fit: true,
-      competitor_price_range: item.priceRange,
-      top_seller_count: 0,
-      review_issue_summary: item.painPoints,
-      negative_review_keywords: item.painPoints,
-      improvement_points: item.nextAction,
+      demand_stability: item.monthly_purchase_badge,
+      seasonality: item.seasonality_status,
+      long_term_fit: /pb|自有品牌|own/i.test(item.recommendation_type),
+      short_term_test_fit: item.risk_level !== "high",
+      competitor_price_range: item.price_range,
+      top_seller_count: item.monthly_purchase_level === "over_10000" ? 10 : item.monthly_purchase_level === "over_5000" ? 6 : 3,
+      review_issue_summary: item.consumer_pain_points,
+      negative_review_keywords: item.bad_review_samples.join(", "),
+      improvement_points: item.next_action,
     });
-    setBanner(t.bannerTransferred);
+
+    persist(
+      updateHotProductItem(items, item.id, (currentItem) => ({
+        ...currentItem,
+        imported_to_opportunity_pool: true,
+        action_status: "transferred_opportunity",
+      })),
+      t.messages.toOpportunity,
+    );
+  }
+
+  function markIgnored(item: HotProductIntelligenceItem) {
+    persist(
+      updateHotProductItem(items, item.id, (currentItem) => ({
+        ...currentItem,
+        action_status: "ignored",
+        exclude_reason: currentItem.exclude_reason || t.messages.ignoredReason,
+      })),
+      t.messages.ignored,
+    );
   }
 
   return (
@@ -142,7 +326,7 @@ export function HotProductsIntelligenceWorkbench() {
       <PageHeader eyebrow={t.header.eyebrow} title={t.header.title} description={t.header.description} />
       <div className="flex w-full flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10 2xl:px-12">
         <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_46%,#eef5ff_100%)]">
-          <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)] lg:px-8">
+          <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)] lg:px-8">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/90 px-3 py-1 text-xs font-semibold text-orange-700">
                 <Flame className="h-3.5 w-3.5" />
@@ -151,8 +335,8 @@ export function HotProductsIntelligenceWorkbench() {
               <h2 className="mt-4 text-[28px] font-semibold tracking-[-0.04em] text-slate-950">{t.hero.title}</h2>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{t.hero.description}</p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Button onClick={() => void load()} disabled={loading}>
-                  <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                <Button onClick={refreshFromBundle}>
+                  <FolderSync className="h-4 w-4" />
                   {t.hero.refresh}
                 </Button>
               </div>
@@ -176,37 +360,65 @@ export function HotProductsIntelligenceWorkbench() {
           ))}
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_420px]">
-          <SectionCard title={t.list.title} description={t.list.description}>
-            <div className="space-y-3">
-              {items.slice(0, 18).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedId(item.id)}
-                  className={`grid w-full gap-4 rounded-[18px] border p-5 text-left transition-colors lg:grid-cols-[minmax(0,1.6fr)_120px_120px_120px] ${
-                    item.id === selectedId ? "border-slate-900 bg-slate-950 text-white" : "border-slate-200 bg-slate-50/55 hover:bg-slate-50"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className={`truncate text-base font-semibold tracking-[-0.02em] ${item.id === selectedId ? "text-white" : "text-slate-950"}`}>
-                      {locale === "ko" ? item.productNameKo : item.productNameZh || item.productNameKo}
-                    </p>
-                    <p className={`mt-2 text-sm ${item.id === selectedId ? "text-slate-300" : "text-slate-500"}`}>
-                      {item.brand || t.common.noBrand} · {item.category}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <StatusBadge tone="info">{item.monthlyPurchaseBadge || t.common.noBadge}</StatusBadge>
-                      <StatusBadge tone="warning">{item.priceRange || t.common.noPriceRange}</StatusBadge>
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_440px]">
+          <div className="space-y-6">
+            <SectionCard title={t.filters.title} description={t.filters.description}>
+              <div className="flex flex-col gap-4">
+                <div className="relative max-w-xl">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={filters.query}
+                    onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+                    placeholder={t.filters.search}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
+                  />
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <SelectField label={t.filters.purchase} value={filters.purchase} onChange={(value) => setFilters((current) => ({ ...current, purchase: value as Filters["purchase"] }))} options={purchaseOptions(t)} />
+                  <SelectField label={t.filters.category} value={filters.category} onChange={(value) => setFilters((current) => ({ ...current, category: value }))} options={buildOptions(categories, t.filters.all)} />
+                  <SelectField label={t.filters.delivery} value={filters.delivery} onChange={(value) => setFilters((current) => ({ ...current, delivery: value }))} options={buildOptions(deliveries, t.filters.all)} />
+                  <SelectField label={t.filters.seller} value={filters.seller} onChange={(value) => setFilters((current) => ({ ...current, seller: value }))} options={buildOptions(sellers, t.filters.all)} />
+                  <SelectField label={t.filters.action} value={filters.action} onChange={(value) => setFilters((current) => ({ ...current, action: value as Filters["action"] }))} options={actionOptions(t)} />
+                  <SelectField label={t.filters.risk} value={filters.risk} onChange={(value) => setFilters((current) => ({ ...current, risk: value as Filters["risk"] }))} options={riskOptions(t)} />
+                  <SelectField label={t.filters.seasonality} value={filters.seasonality} onChange={(value) => setFilters((current) => ({ ...current, seasonality: value as Filters["seasonality"] }))} options={seasonalityOptions(t)} />
+                  <SelectField label={t.filters.source} value={filters.source} onChange={(value) => setFilters((current) => ({ ...current, source: value as Filters["source"] }))} options={sourceOptions(t)} />
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard title={t.list.title} description={t.list.description}>
+              <div className="space-y-3">
+                {filtered.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedId(item.id)}
+                    className={`grid w-full gap-4 rounded-[18px] border p-5 text-left transition-colors lg:grid-cols-[minmax(0,1.7fr)_120px_120px_140px] ${
+                      item.id === selectedId ? "border-slate-900 bg-slate-950 text-white" : "border-slate-200 bg-slate-50/55 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className={`truncate text-base font-semibold tracking-[-0.02em] ${item.id === selectedId ? "text-white" : "text-slate-950"}`}>
+                        {locale === "ko" ? item.product_name_ko : item.product_name_zh || item.product_name_ko}
+                      </p>
+                      <p className={`mt-2 text-sm ${item.id === selectedId ? "text-slate-300" : "text-slate-500"}`}>
+                        {item.brand || t.common.noBrand} · {item.category}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <StatusBadge tone="info">{purchaseLabel(item.monthly_purchase_level, t)}</StatusBadge>
+                        <StatusBadge tone={toneForRisk(item.risk_level)}>{riskLabel(item.risk_level, t)}</StatusBadge>
+                        <StatusBadge tone="neutral">{actionLabel(item.action_status, t)}</StatusBadge>
+                      </div>
                     </div>
-                  </div>
-                  <Metric label={t.list.opportunity} value={levelLabel(item.opportunityLevel, t)} selected={item.id === selectedId} />
-                  <Metric label={t.list.competition} value={levelLabel(item.competitionLevel, t)} selected={item.id === selectedId} />
-                  <Metric label={t.list.recommendation} value={item.recommendationType || "-"} selected={item.id === selectedId} />
-                </button>
-              ))}
-            </div>
-          </SectionCard>
+                    <Metric label={t.list.price} value={`${item.competitor_price_krw}`} selected={item.id === selectedId} />
+                    <Metric label={t.list.reviews} value={`${item.review_count}`} selected={item.id === selectedId} />
+                    <Metric label={t.list.destination} value={item.recommended_destination || "-"} selected={item.id === selectedId} />
+                  </button>
+                ))}
+                {!filtered.length ? <EmptyPanel message={t.list.empty} /> : null}
+              </div>
+            </SectionCard>
+          </div>
 
           <Card className="h-fit overflow-hidden">
             <CardHeader className="space-y-4">
@@ -215,40 +427,70 @@ export function HotProductsIntelligenceWorkbench() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{t.detail.eyebrow}</p>
                     <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-slate-950">
-                      {locale === "ko" ? selected.productNameKo : selected.productNameZh || selected.productNameKo}
+                      {locale === "ko" ? selected.product_name_ko : selected.product_name_zh || selected.product_name_ko}
                     </h3>
-                    <p className="mt-2 text-sm text-slate-500">{selected.brand || t.common.noBrand} · {selected.reviewCount} {t.detail.reviewUnit}</p>
+                    <p className="mt-2 text-sm text-slate-500">{selected.competitor_price_krw} KRW · {selected.review_count} reviews</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <MiniStat label={t.detail.rating} value={String(selected.rating)} />
-                    <MiniStat label={t.detail.price} value={`${selected.price}`} />
-                    <MiniStat label={t.detail.sales} value={String(selected.monthlySales)} />
-                    <MiniStat label={t.detail.risk} value={levelLabel(selected.riskLevel, t)} />
+                    <MiniStat label={t.detail.monthly} value={purchaseLabel(selected.monthly_purchase_level, t)} />
+                    <MiniStat label={t.detail.risk} value={riskLabel(selected.risk_level, t)} />
+                    <MiniStat label={t.detail.competition} value={riskLabel(selected.competition_level, t)} />
+                    <MiniStat label={t.detail.opportunity} value={riskLabel(selected.opportunity_level, t)} />
                   </div>
                 </>
               ) : null}
             </CardHeader>
             {selected ? (
               <CardContent className="space-y-6">
+                <DetailSection title={t.detail.summary}>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge tone="info">{selected.recommendation_type || t.common.noRecommendation}</StatusBadge>
+                    <StatusBadge tone="neutral">{selected.delivery_type || t.common.noDelivery}</StatusBadge>
+                    <StatusBadge tone="neutral">{selected.seller_type || t.common.noSeller}</StatusBadge>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{selected.hot_reason || "-"}</p>
+                </DetailSection>
+
                 <DetailSection title={t.detail.marketAnalysis}>
-                  <p className="text-sm leading-6 text-slate-600">{selected.marketAnalysis || "-"}</p>
+                  <p className="text-sm leading-6 text-slate-600">{selected.market_analysis || "-"}</p>
                 </DetailSection>
+
                 <DetailSection title={t.detail.painPoints}>
-                  <p className="text-sm leading-6 text-slate-600">{selected.painPoints || "-"}</p>
+                  <p className="text-sm leading-6 text-slate-600">{selected.consumer_pain_points || "-"}</p>
                 </DetailSection>
+
+                <DetailSection title={t.detail.risks}>
+                  <div className="flex flex-wrap gap-2">
+                    {selected.risk_tags.map((tag) => (
+                      <StatusBadge key={tag} tone="warning">{tag}</StatusBadge>
+                    ))}
+                    {!selected.risk_tags.length ? <p className="text-sm text-slate-500">{t.common.none}</p> : null}
+                  </div>
+                </DetailSection>
+
                 <DetailSection title={t.detail.nextAction}>
-                  <p className="text-sm leading-6 text-slate-600">{selected.nextAction || "-"}</p>
+                  <p className="text-sm leading-6 text-slate-600">{selected.next_action || "-"}</p>
                 </DetailSection>
+
                 <DetailSection title={t.detail.actions}>
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => transferToOpportunity(selected)}>{t.detail.transfer}</Button>
-                    <a href={selected.coupangUrl} target="_blank" rel="noreferrer">
-                      <Button variant="outline">{t.detail.open}</Button>
-                    </a>
+                    <Button onClick={() => transferToCompetitor(selected)}>{t.detail.toCompetitor}</Button>
+                    <Button variant="outline" onClick={() => transferToTesting(selected)}>{t.detail.toTesting}</Button>
+                    <Button variant="outline" onClick={() => transferToOpportunity(selected)}>{t.detail.toOpportunity}</Button>
+                    <Button variant="outline" onClick={() => markIgnored(selected)}>{t.detail.ignore}</Button>
+                    {selected.coupang_url ? (
+                      <a href={selected.coupang_url} target="_blank" rel="noreferrer">
+                        <Button variant="outline">{t.detail.open}</Button>
+                      </a>
+                    ) : null}
                   </div>
                 </DetailSection>
               </CardContent>
-            ) : null}
+            ) : (
+              <CardContent>
+                <EmptyPanel message={t.list.empty} />
+              </CardContent>
+            )}
           </Card>
         </section>
       </div>
@@ -256,47 +498,170 @@ export function HotProductsIntelligenceWorkbench() {
   );
 }
 
-function mapHotProductRow(row: HotProductRow): HotProductInsight {
-  const recommendationType = text(row.recommended_business_type || row.recommendation_direction || "");
-  const pain = text(row.consumer_pain_points || row.review_analysis_summary || row.bad_review_samples || "");
-  const reviewCount = num(row.review_count);
-  const rating = num(row.rating);
-  const monthlySales = num(row.estimated_monthly_sales);
+function mapHotToCompetitor(item: HotProductIntelligenceItem): CompetitorLibraryItem {
   return {
-    id: crypto.randomUUID(),
-    productNameKo: text(row.product_name_ko),
-    productNameZh: text(row.product_name_zh),
-    coupangUrl: text(row.coupang_url),
-    imageUrl: text(row.image_url),
-    brand: text(row.brand),
-    category: text(row.category),
-    reviewCount,
-    rating,
-    price: num(row.competitor_price_krw),
-    monthlySales,
-    monthlyPurchaseBadge: text(row.monthly_purchase_badge),
-    painPoints: pain,
-    marketAnalysis: text(row.market_analysis),
-    priceRange: text(row.price_range),
-    recommendationType,
-    nextAction: text(row.next_action),
-    opportunityLevel: monthlySales >= 4000 ? "high" : monthlySales >= 1500 ? "medium" : "low",
-    competitionLevel: reviewCount >= 5000 ? "high" : reviewCount >= 1500 ? "medium" : "low",
-    riskLevel: /高|risk|退货|반품/i.test(pain) ? "high" : /中|warning/i.test(pain) ? "medium" : "low",
+    id: `hot-${item.id}`,
+    source_type: "hot_products",
+    source_id: item.id,
+    product_name_ko: item.product_name_ko,
+    product_name_zh: item.product_name_zh,
+    coupang_url: item.coupang_url,
+    image_url: item.image_url,
+    brand: item.brand,
+    category: item.category,
+    delivery_type: item.delivery_type,
+    seller_type: item.seller_type,
+    monthly_purchase_badge: item.monthly_purchase_badge,
+    monthly_purchase_level: item.monthly_purchase_level,
+    competitor_price_krw: item.competitor_price_krw,
+    review_count: item.review_count,
+    rating: item.rating,
+    title_keywords: item.keywords,
+    main_image_selling_points: item.core_selling_points,
+    detail_page_selling_points: item.core_selling_points,
+    core_selling_points: item.core_selling_points,
+    positive_review_points: item.core_selling_points.slice(0, 3),
+    bad_review_samples: item.bad_review_samples,
+    consumer_pain_points: item.consumer_pain_points,
+    pain_point_categories: item.risk_tags,
+    improvement_opportunities: [item.next_action].filter(Boolean),
+    why_it_sells: item.hot_reason,
+    supply_chain_fit: item.risk_tags.includes("电子/KC") ? "需要先确认认证与供货稳定性" : "适合先找 2-3 家供应商快速对标",
+    rocket_growth_fit: /rocket|rg/i.test(item.recommendation_type) ? "可直接进 RG 深挖" : "先观察卖点和物流模式是否适合 RG",
+    pb_supply_fit: /pb/i.test(item.recommendation_type) ? "可进入 PB 供应判断" : "先看差评能否形成产品差异化",
+    own_brand_fit: /own|品牌|自有/i.test(item.recommendation_type) ? "可延伸自有品牌" : "暂不建议直接做品牌化",
+    competition_level: item.competition_level,
+    risk_level: item.risk_level,
+    follow_up_value: item.opportunity_level,
+    improvement_opportunity_level: item.opportunity_level,
+    follow_up_recommendation: item.next_action,
+    recommended_destination: item.recommended_destination,
+    recommended_import_target: item.recommendation_type || item.recommended_destination,
+    next_action: item.next_action,
+    is_ignored: false,
+    ignore_reason: "",
+    imported_to_opportunity_board: false,
+    imported_to_product_test: item.imported_to_product_test,
+    imported_to_opportunity_pool: item.imported_to_opportunity_pool,
+    risk_tags: item.risk_tags,
+    notes: item.market_analysis,
+    status: item.risk_level === "high" ? "watch" : "analyze",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 }
 
-function text(value: unknown) {
-  return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
+function inferBusinessType(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes("pb")) return "pb_supply";
+  if (normalized.includes("rocket") || normalized.includes("rg")) return "rocket_growth";
+  return "general";
 }
 
-function num(value: unknown) {
-  const n = Number(String(value ?? 0).replace(/,/g, ""));
-  return Number.isFinite(n) ? n : 0;
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
 }
 
-function levelLabel(level: "low" | "medium" | "high", t: typeof ZH_COPY) {
+function buildOptions(values: string[], allLabel: string) {
+  return [{ value: "all", label: allLabel }, ...values.map((value) => ({ value, label: value }))];
+}
+
+function purchaseOptions(t: typeof ZH_COPY) {
+  return [
+    { value: "all", label: t.filters.all },
+    { value: "under_1000", label: t.purchase.under_1000 },
+    { value: "over_1000", label: t.purchase.over_1000 },
+    { value: "over_3000", label: t.purchase.over_3000 },
+    { value: "over_5000", label: t.purchase.over_5000 },
+    { value: "over_10000", label: t.purchase.over_10000 },
+    { value: "unknown", label: t.purchase.unknown },
+  ];
+}
+
+function actionOptions(t: typeof ZH_COPY) {
+  return [
+    { value: "all", label: t.filters.all },
+    { value: "pending", label: t.actions.pending },
+    { value: "recommended", label: t.actions.recommended },
+    { value: "transferred_competitor", label: t.actions.transferred_competitor },
+    { value: "transferred_testing", label: t.actions.transferred_testing },
+    { value: "transferred_opportunity", label: t.actions.transferred_opportunity },
+    { value: "ignored", label: t.actions.ignored },
+  ];
+}
+
+function riskOptions(t: typeof ZH_COPY) {
+  return [
+    { value: "all", label: t.filters.all },
+    { value: "low", label: t.levels.low },
+    { value: "medium", label: t.levels.medium },
+    { value: "high", label: t.levels.high },
+  ];
+}
+
+function seasonalityOptions(t: typeof ZH_COPY) {
+  return [
+    { value: "all", label: t.filters.all },
+    { value: "evergreen", label: t.seasonality.evergreen },
+    { value: "seasonal", label: t.seasonality.seasonal },
+    { value: "uncertain", label: t.seasonality.uncertain },
+  ];
+}
+
+function sourceOptions(t: typeof ZH_COPY) {
+  return [
+    { value: "all", label: t.filters.all },
+    { value: "sample_bundle", label: t.sources.sample_bundle },
+    { value: "codex_import", label: t.sources.codex_import },
+    { value: "manual", label: t.sources.manual },
+  ];
+}
+
+function purchaseLabel(level: MonthlyPurchaseLevel, t: typeof ZH_COPY) {
+  return t.purchase[level];
+}
+
+function actionLabel(status: HotActionStatus, t: typeof ZH_COPY) {
+  return t.actions[status];
+}
+
+function riskLabel(level: HotRiskLevel, t: typeof ZH_COPY) {
   return t.levels[level];
+}
+
+function toneForRisk(level: HotRiskLevel) {
+  if (level === "high") return "danger" as const;
+  if (level === "medium") return "warning" as const;
+  return "success" as const;
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className="text-sm font-medium text-slate-700">
+      <span>{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function Metric({ label, value, selected }: { label: string; value: string; selected: boolean }) {
@@ -326,143 +691,254 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
+function EmptyPanel({ message }: { message: string }) {
+  return <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">{message}</div>;
+}
+
 const ZH_COPY = {
   header: {
     eyebrow: "HOT PRODUCT INTELLIGENCE",
     title: "Coupang 热销情报中心",
-    description: "围绕 Coupang 热销商品样本，快速判断市场热度、竞争壁垒、评论风险和下一步业务去向。",
+    description: "围绕 Coupang 热销样本做长期运营判断，不再只看一眼爆款，而是持续管理热度、风险、去向和后续动作。",
   },
   hero: {
-    badge: "Coupang 热销样本情报",
-    title: "先看市场已经验证的热销商品，再决定要不要进入机会池与竞品库",
-    description: "这里不是杂乱信息堆积，而是把热销商品样本转成结构化情报，帮助你判断哪些值得继续追、哪些竞争已经太深、哪些需要先观察。",
-    refresh: "刷新热销样本",
+    badge: "长期运营型热销工作台",
+    title: "先看市场已经验证的热销商品，再决定它应该进入竞品库、测试库还是机会池",
+    description: "这个页面不是简单展示爆款样本，而是把热销商品沉淀成可筛选、可归档、可流转的情报清单。你可以在这里判断热度层级、风险标签、季节性、推荐去向和下一步动作。",
+    refresh: "重新载入热销样本",
     cards: [
-      { title: "看热度", note: "先看月购标签、评论量和评分，判断是不是已经被市场验证。" },
-      { title: "看竞争", note: "评论壁垒太深的商品，不一定适合继续追。" },
-      { title: "看去向", note: "适合的商品直接转机会池，不适合的商品留在情报层观察。" },
-      { title: "看风险", note: "退货、差评和高竞争风险会直接影响是否继续推进。" },
+      { title: "先看热度", note: "月购标签和评论规模先决定这个样本值不值得盯。" },
+      { title: "再看风险", note: "KC、退货、物流、类目限制要尽早暴露出来。" },
+      { title: "再定去向", note: "不是所有热销样本都直接进机会池，有些更适合先进竞品库。" },
+      { title: "最后转动作", note: "每个样本最后都要落到同步、继续跟踪或忽略。" },
     ],
   },
   metrics: {
     total: "热销样本数",
-    totalNote: "当前纳入情报中心的热销商品数量。",
-    opportunity: "高机会商品",
-    opportunityNote: "市场热度高且还值得继续跟进的商品。",
-    badge: "高月购标签",
-    badgeNote: "月购标签强，说明市场已经形成明确需求。",
-    competition: "高竞争壁垒",
-    competitionNote: "评论与头部竞争壁垒偏高，需要谨慎推进。",
-    rg: "适合 RG",
-    rgNote: "更适合走 Rocket Growth 路线。",
-    pb: "适合 PB",
-    pbNote: "更适合作为 PB 候选方向。",
-    risk: "高风险样本",
-    riskNote: "存在明显差评或退货信号的样本。",
-    rating: "评分 / 均评数",
-    ratingNote: "样本平均评分与平均评论规模。",
+    totalNote: "当前工作台中的总样本数。",
+    purchase1000: "月购 1000+",
+    purchase1000Note: "已有明显成交验证的热销样本。",
+    purchase5000: "月购 5000+",
+    purchase5000Note: "已经进入头部区间的热销样本。",
+    highOpportunity: "高机会样本",
+    highOpportunityNote: "适合继续深挖或流转动作的样本。",
+    highRisk: "高风险样本",
+    highRiskNote: "认证、退货或物流风险偏高的样本。",
+    toCompetitor: "已入竞品库",
+    toCompetitorNote: "已同步进入竞品采集库的样本。",
+    toTesting: "已入测试库",
+    toTestingNote: "已同步进入商品测试数据库的样本。",
+    toOpportunity: "已入机会池",
+    toOpportunityNote: "已转入机会池继续分析的样本。",
+  },
+  filters: {
+    title: "情报筛选",
+    description: "按热度、类目、配送方式、卖家类型、风险和动作状态，快速找到最值得推进或最该排除的样本。",
+    search: "搜索商品名、品牌、类目、风险标签、下一步动作",
+    purchase: "月购层级",
+    category: "类目",
+    delivery: "配送方式",
+    seller: "卖家类型",
+    action: "动作状态",
+    risk: "风险等级",
+    seasonality: "季节性",
+    source: "来源",
+    all: "全部",
   },
   list: {
-    title: "热销商品情报列表",
-    description: "从热销样本里挑出真正值得继续追踪的商品。",
-    opportunity: "机会",
-    competition: "竞争",
-    recommendation: "建议去向",
+    title: "热销样本列表",
+    description: "把热销样本当成长期追踪资产，而不是一次性灵感。",
+    price: "售价",
+    reviews: "评论数",
+    destination: "推荐去向",
+    empty: "当前没有符合筛选条件的热销样本。",
   },
   detail: {
     eyebrow: "Hot Product Detail",
-    reviewUnit: "条评论",
-    rating: "评分",
-    price: "售价 KRW",
-    sales: "月销估算",
-    risk: "风险",
+    monthly: "月购层级",
+    risk: "风险等级",
+    competition: "竞争强度",
+    opportunity: "机会等级",
+    summary: "样本摘要",
     marketAnalysis: "市场判断",
-    painPoints: "差评 / 痛点",
+    painPoints: "差评 / 用户痛点",
+    risks: "风险标签",
     nextAction: "下一步动作",
-    actions: "动作",
-    transfer: "转入机会池",
+    actions: "流转动作",
+    toCompetitor: "同步到竞品库",
+    toTesting: "同步到测试库",
+    toOpportunity: "同步到机会池",
+    ignore: "标记忽略",
     open: "打开 Coupang",
   },
-  bannerTransferred: "已把该热销商品转入本地机会池。",
-  common: {
-    noBrand: "无品牌",
-    noBadge: "无月购标签",
-    noPriceRange: "无价格区间",
+  purchase: {
+    under_1000: "不足 1000",
+    over_1000: "1000+",
+    over_3000: "3000+",
+    over_5000: "5000+",
+    over_10000: "10000+",
+    unknown: "待确认",
+  },
+  actions: {
+    pending: "待判断",
+    recommended: "已推荐去向",
+    transferred_competitor: "已转竞品库",
+    transferred_testing: "已转测试库",
+    transferred_opportunity: "已转机会池",
+    ignored: "已忽略",
   },
   levels: {
     low: "低",
     medium: "中",
     high: "高",
   },
+  seasonality: {
+    evergreen: "常年型",
+    seasonal: "季节型",
+    uncertain: "待确认",
+  },
+  sources: {
+    sample_bundle: "内置热销样本",
+    codex_import: "Codex 导入",
+    manual: "手动录入",
+  },
+  messages: {
+    seeded: "已把内置热销样本装入情报中心。",
+    toCompetitor: "已同步到竞品采集库。",
+    toTesting: "已同步到商品测试数据库。",
+    toOpportunity: "已同步到机会池。",
+    ignored: "已标记为忽略样本。",
+    ignoredReason: "当前不适合继续跟进",
+  },
+  common: {
+    noBrand: "无品牌",
+    noRecommendation: "未给出推荐方向",
+    noDelivery: "配送待确认",
+    noSeller: "卖家待确认",
+    none: "无",
+  },
 };
 
 const KO_COPY: typeof ZH_COPY = {
-  ...ZH_COPY,
   header: {
     eyebrow: "HOT PRODUCT INTELLIGENCE",
     title: "Coupang 히트상품 인텔리전스 센터",
-    description: "Coupang 히트상품 샘플을 기준으로 시장 열도, 경쟁 장벽, 리뷰 리스크, 다음 비즈니스 방향을 빠르게 판단합니다.",
+    description: "Coupang 히트상품 샘플을 장기 운영 관점에서 관리하고, 열도·리스크·다음 경로를 한 화면에서 판단합니다.",
   },
   hero: {
-    badge: "Coupang 히트상품 샘플 인텔리전스",
-    title: "이미 시장 검증이 된 히트상품부터 보고 기회보드 / 경쟁상품 라이브러리로 넘길지 결정합니다",
-    description: "단순 정보 모음이 아니라 히트상품 샘플을 구조화된 인텔리전스로 바꿔서, 계속 추적할지 경쟁이 너무 깊은지 먼저 판단할 수 있게 합니다.",
-    refresh: "히트상품 샘플 새로고침",
+    badge: "장기 운영형 히트상품 워크벤치",
+    title: "시장 검증이 끝난 히트상품을 먼저 보고 경쟁상품 라이브러리, 테스트 DB, 기회보드 중 어디로 보낼지 결정합니다.",
+    description: "이 화면은 단순 폭발상품 모음이 아니라, 히트상품을 계속 추적할 수 있는 인텔리전스 자산으로 관리하는 곳입니다.",
+    refresh: "히트상품 샘플 다시 불러오기",
     cards: [
-      { title: "열도 확인", note: "월구매 배지, 리뷰 수, 평점을 먼저 보고 시장 검증 여부를 봅니다." },
-      { title: "경쟁 확인", note: "리뷰 장벽이 너무 높은 상품은 무리해서 따라가지 않습니다." },
-      { title: "다음 경로", note: "맞는 상품은 바로 기회보드로, 아닌 상품은 인텔리전스 단계에서 계속 관찰합니다." },
-      { title: "리스크 확인", note: "반품, 부정 리뷰, 과도한 경쟁 신호는 바로 의사결정에 반영합니다." },
+      { title: "열도 확인", note: "월구매 배지와 리뷰 규모를 먼저 봅니다." },
+      { title: "리스크 확인", note: "KC, 반품, 물류, 카테고리 제한을 먼저 드러냅니다." },
+      { title: "경로 결정", note: "모든 샘플이 바로 기회보드로 가는 것은 아닙니다." },
+      { title: "액션 연결", note: "각 샘플은 결국 동기화, 추적, 무시 중 하나로 정리됩니다." },
     ],
   },
   metrics: {
     total: "히트상품 샘플 수",
-    totalNote: "현재 센터에 반영된 히트상품 수입니다.",
-    opportunity: "고기회 상품",
-    opportunityNote: "시장 열도가 높고 계속 추적할 가치가 있는 상품입니다.",
-    badge: "강한 월구매 배지",
-    badgeNote: "월구매 신호가 강해 시장 수요가 분명한 상품입니다.",
-    competition: "고경쟁 장벽",
-    competitionNote: "리뷰 및 상위 경쟁 장벽이 높아 주의가 필요한 상품입니다.",
-    rg: "RG 적합",
-    rgNote: "Rocket Growth 경로에 더 적합합니다.",
-    pb: "PB 적합",
-    pbNote: "PB 후보 방향에 더 적합합니다.",
-    risk: "고위험 샘플",
-    riskNote: "부정 리뷰 또는 반품 리스크가 높은 샘플입니다.",
-    rating: "평점 / 평균 리뷰수",
-    ratingNote: "샘플 평균 평점과 평균 리뷰 규모입니다.",
+    totalNote: "현재 워크벤치의 총 샘플 수입니다.",
+    purchase1000: "월구매 1000+",
+    purchase1000Note: "명확한 판매 검증이 있는 샘플입니다.",
+    purchase5000: "월구매 5000+",
+    purchase5000Note: "상위권 구간에 들어간 샘플입니다.",
+    highOpportunity: "고기회 샘플",
+    highOpportunityNote: "계속 깊게 파볼 가치가 있는 샘플입니다.",
+    highRisk: "고위험 샘플",
+    highRiskNote: "인증·반품·물류 리스크가 큰 샘플입니다.",
+    toCompetitor: "경쟁상품 라이브러리 반영",
+    toCompetitorNote: "경쟁상품 라이브러리로 넘긴 샘플입니다.",
+    toTesting: "테스트 DB 반영",
+    toTestingNote: "상품 테스트 DB로 넘긴 샘플입니다.",
+    toOpportunity: "기회보드 반영",
+    toOpportunityNote: "기회보드로 넘긴 샘플입니다.",
+  },
+  filters: {
+    title: "인텔리전스 필터",
+    description: "열도, 카테고리, 배송 방식, 판매자 유형, 리스크와 액션 상태로 우선순위를 빠르게 찾습니다.",
+    search: "상품명, 브랜드, 카테고리, 리스크 태그, 다음 액션 검색",
+    purchase: "월구매 레벨",
+    category: "카테고리",
+    delivery: "배송 방식",
+    seller: "판매자 유형",
+    action: "액션 상태",
+    risk: "리스크 레벨",
+    seasonality: "계절성",
+    source: "출처",
+    all: "전체",
   },
   list: {
-    title: "히트상품 인텔리전스 목록",
-    description: "히트상품 샘플 중 실제로 계속 추적할 가치가 있는 상품을 뽑습니다.",
-    opportunity: "기회",
-    competition: "경쟁",
-    recommendation: "추천 경로",
+    title: "히트상품 샘플 목록",
+    description: "한 번 보고 버리는 샘플이 아니라 지속 추적 대상로 관리합니다.",
+    price: "판매가",
+    reviews: "리뷰수",
+    destination: "추천 경로",
+    empty: "필터 조건에 맞는 히트상품 샘플이 없습니다.",
   },
   detail: {
     eyebrow: "Hot Product Detail",
-    reviewUnit: "개 리뷰",
-    rating: "평점",
-    price: "판매가 KRW",
-    sales: "월 판매 추정",
-    risk: "리스크",
+    monthly: "월구매 레벨",
+    risk: "리스크 레벨",
+    competition: "경쟁 강도",
+    opportunity: "기회 레벨",
+    summary: "샘플 요약",
     marketAnalysis: "시장 판단",
-    painPoints: "부정 리뷰 / 문제점",
+    painPoints: "부정 리뷰 / 사용자 불만",
+    risks: "리스크 태그",
     nextAction: "다음 액션",
-    actions: "액션",
-    transfer: "기회보드로 전환",
+    actions: "전환 액션",
+    toCompetitor: "경쟁상품 라이브러리로",
+    toTesting: "테스트 DB로",
+    toOpportunity: "기회보드로",
+    ignore: "무시 처리",
     open: "Coupang 열기",
   },
-  bannerTransferred: "이 히트상품을 로컬 기회보드로 전환했습니다.",
-  common: {
-    noBrand: "브랜드 없음",
-    noBadge: "월구매 배지 없음",
-    noPriceRange: "가격대 없음",
+  purchase: {
+    under_1000: "1000 미만",
+    over_1000: "1000+",
+    over_3000: "3000+",
+    over_5000: "5000+",
+    over_10000: "10000+",
+    unknown: "확인 필요",
+  },
+  actions: {
+    pending: "판단 대기",
+    recommended: "추천 완료",
+    transferred_competitor: "경쟁상품 반영",
+    transferred_testing: "테스트 DB 반영",
+    transferred_opportunity: "기회보드 반영",
+    ignored: "무시 완료",
   },
   levels: {
     low: "낮음",
     medium: "중간",
     high: "높음",
+  },
+  seasonality: {
+    evergreen: "상시형",
+    seasonal: "계절형",
+    uncertain: "확인 필요",
+  },
+  sources: {
+    sample_bundle: "내장 샘플",
+    codex_import: "Codex 가져오기",
+    manual: "수동 입력",
+  },
+  messages: {
+    seeded: "내장 히트상품 샘플을 인텔리전스 센터에 반영했습니다.",
+    toCompetitor: "경쟁상품 라이브러리에 동기화했습니다.",
+    toTesting: "상품 테스트 DB에 동기화했습니다.",
+    toOpportunity: "기회보드에 동기화했습니다.",
+    ignored: "무시 샘플로 표시했습니다.",
+    ignoredReason: "현재 운영 우선순위가 낮음",
+  },
+  common: {
+    noBrand: "브랜드 없음",
+    noRecommendation: "추천 방향 없음",
+    noDelivery: "배송 확인 필요",
+    noSeller: "판매자 확인 필요",
+    none: "없음",
   },
 };
