@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownUp,
   ExternalLink,
@@ -13,6 +13,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useLocale } from "@/components/locale-provider";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,7 @@ const PAGE_SIZE = 10;
 export function DashboardOpportunityCenter() {
   const { locale } = useLocale();
   const t = getDashboardOpportunityCopy(locale);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<ProductOpportunityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<{ tone: "default" | "success" | "danger"; message: string } | null>(null);
@@ -126,6 +128,7 @@ export function DashboardOpportunityCenter() {
   const [editingItem, setEditingItem] = useState<ProductOpportunityRecord | null>(null);
   const [form, setForm] = useState<ProductOpportunityInput>(DEFAULT_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [guestSessionAttempted, setGuestSessionAttempted] = useState(false);
   const [storageMode, setStorageMode] = useState<"remote" | "local">("remote");
 
@@ -285,8 +288,81 @@ export function DashboardOpportunityCenter() {
   }
 
   function onImport() {
-    setBanner({ tone: "default", message: t.importPending });
+    fileInputRef.current?.click();
   }
+
+  async function onImportFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) return;
+
+    setImporting(true);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      if (!firstSheet) {
+        setBanner({ tone: "danger", message: t.importMessages.emptyFile });
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
+      const parsedItems = rows
+        .map((row) => mapImportRowToOpportunity(row))
+        .filter((item): item is ProductOpportunityInput => Boolean(item));
+
+      if (!parsedItems.length) {
+        setBanner({ tone: "danger", message: t.importMessages.noValidRows });
+        return;
+      }
+
+      const importedCount = await importOpportunityItems(parsedItems);
+      if (!importedCount) {
+        setBanner({ tone: "danger", message: t.importMessages.failed });
+        return;
+      }
+
+      await loadItems();
+      setBanner({
+        tone: "success",
+        message: interpolate(t.importMessages.success, { count: String(importedCount) }),
+      });
+    } catch {
+      setBanner({ tone: "danger", message: t.importMessages.failed });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function importOpportunityItems(importItems: ProductOpportunityInput[]) {
+    if (storageMode === "local") {
+      for (const item of importItems) {
+        createLocalProductOpportunity(item);
+      }
+      setItems(loadLocalProductOpportunities());
+      return importItems.length;
+    }
+
+    let importedCount = 0;
+
+    for (const item of importItems) {
+      const result = await submitOpportunityRequest("/api/product-opportunities", "POST", item, {
+        silentSuccess: true,
+        fallbackBanner: t.importMessages.localFallback,
+      });
+
+      if (!result.ok) {
+        break;
+      }
+
+      importedCount += 1;
+    }
+
+      return importedCount;
+    }
 
   const baseFilteredItems = useMemo(() => {
     const keyword = filters.query.trim().toLowerCase();
@@ -396,7 +472,12 @@ export function DashboardOpportunityCenter() {
     }
   }
 
-  async function submitOpportunityRequest(url: string, method: "POST" | "PATCH", payload: ProductOpportunityInput) {
+  async function submitOpportunityRequest(
+    url: string,
+    method: "POST" | "PATCH",
+    payload: ProductOpportunityInput,
+    options?: { silentSuccess?: boolean; fallbackBanner?: string },
+  ) {
     const response = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -429,7 +510,7 @@ export function DashboardOpportunityCenter() {
         createLocalProductOpportunity(payload);
       }
       setItems(loadLocalProductOpportunities());
-      setBanner({ tone: "default", message: t.localMode });
+      setBanner({ tone: "default", message: options?.fallbackBanner ?? t.localMode });
       return { ok: true as const };
     }
 
@@ -441,7 +522,7 @@ export function DashboardOpportunityCenter() {
         createLocalProductOpportunity(payload);
       }
       setItems(loadLocalProductOpportunities());
-      setBanner({ tone: "default", message: t.localMode });
+      setBanner({ tone: "default", message: options?.fallbackBanner ?? t.localMode });
       return { ok: true as const };
     }
 
@@ -520,15 +601,22 @@ export function DashboardOpportunityCenter() {
 
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        className="hidden"
+        onChange={onImportFileChange}
+      />
       <PageHeader
         eyebrow={t.eyebrow}
         title={t.title}
         description={t.description}
         action={
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={onImport}>
+            <Button variant="outline" onClick={onImport} disabled={importing}>
               <Import className="h-4 w-4" />
-              {t.import}
+              {importing ? t.importMessages.importing : t.import}
             </Button>
             <Button onClick={openCreateDrawer}>
               <FolderPlus className="h-4 w-4" />
@@ -1678,6 +1766,128 @@ function mapRecordToForm(item: ProductOpportunityRecord): ProductOpportunityInpu
     negative_review_keywords: item.negative_review_keywords ?? "",
     improvement_points: item.improvement_points ?? "",
   };
+}
+
+function mapImportRowToOpportunity(row: Record<string, unknown>): ProductOpportunityInput | null {
+  const title = readRowString(row, ["title", "name", "product_name", "product title", "商品名称", "商品名", "상품명"]);
+  if (!title) return null;
+
+  return {
+    ...DEFAULT_FORM,
+    title,
+    sku: readRowString(row, ["sku", "SKU"]),
+    keyword: readRowString(row, ["keyword", "keywords", "商品关键词", "关键词", "키워드"]),
+    coupang_url: readRowString(row, ["coupang_url", "coupang link", "link", "url", "Coupang链接", "链接", "쿠팡링크"]),
+    image_url: readRowString(row, ["image", "image_url", "image link", "图片", "图片链接", "이미지", "이미지링크"]),
+    category: mapCategoryValue(readRowString(row, ["category", "品类", "类目", "카테고리"])),
+    business_type: mapDirectionValue(readRowString(row, ["business_type", "direction", "商品方向", "方向", "상품방향"])),
+    price: readRowNumber(row, ["price", "售价", "价格", "판매가"]),
+    review_count: readRowNumber(row, ["review_count", "reviews", "评论数", "리뷰수"]),
+    rating: readRowNumber(row, ["rating", "评分", "평점"]),
+    competitor_count: readRowNumber(row, ["competitor_count", "competitors", "竞品数量", "경쟁상품수"]),
+    estimated_purchase_cost: readRowNumber(row, ["purchase_cost", "estimated_purchase_cost", "采购预估价", "采购价", "매입가"]),
+    estimated_shipping_cost: readRowNumber(row, ["shipping_cost", "estimated_shipping_cost", "国际物流费", "국제물류비"]),
+    estimated_local_delivery_cost: readRowNumber(row, ["local_delivery_cost", "estimated_local_delivery_cost", "韩国本地物流费", "로컬배송비"]),
+    platform_fee_rate: readRowNumber(row, ["platform_fee_rate", "fee_rate", "手续费", "수수료"]),
+    estimated_ad_cost: readRowNumber(row, ["ad_cost", "estimated_ad_cost", "广告费", "광고비"]),
+    estimated_sale_price: readRowNumber(row, ["estimated_sale_price", "sale_price", "预计售价", "目标售价", "예상판매가"]),
+    market_heat: mapLevelValue(readRowString(row, ["market_heat", "市场热度", "시장열도"]), "medium"),
+    competition_level: mapLevelValue(readRowString(row, ["competition_level", "竞争强度", "경쟁강도"]), "medium"),
+    kc_risk: mapLevelValue(readRowString(row, ["kc_risk", "KC风险", "kc리스크"]), "low"),
+    volume_weight_risk: mapLevelValue(readRowString(row, ["volume_weight_risk", "体积重量风险", "부피중량리스크"]), "low"),
+    return_risk: mapLevelValue(readRowString(row, ["return_risk", "退货风险", "반품리스크"]), "low"),
+    negative_review_risk: mapLevelValue(readRowString(row, ["negative_review_risk", "差评风险", "부정리뷰리스크"]), "low"),
+    price_war_risk: mapLevelValue(readRowString(row, ["price_war_risk", "价格战风险", "가격전쟁리스크"]), "low"),
+    supply_chain_risk: mapLevelValue(readRowString(row, ["supply_chain_risk", "供应链风险", "공급망리스크"]), "low"),
+    notes: readRowString(row, ["notes", "remark", "备注", "메모"]),
+    status: mapStatusValue(readRowString(row, ["status", "商品状态", "状态", "상태"])),
+    next_action: mapNextActionValue(readRowString(row, ["next_action", "下一步动作", "다음액션"])),
+    demand_stability: readRowString(row, ["demand_stability", "需求稳定性", "수요안정성"]),
+    seasonality: readRowString(row, ["seasonality", "季节性", "계절성"]),
+    long_term_fit: readRowBoolean(row, ["long_term_fit", "适合长期做", "장기운영적합"]),
+    short_term_test_fit: readRowBoolean(row, ["short_term_test_fit", "适合短期测试", "단기테스트적합"], true),
+    competitor_price_range: readRowString(row, ["competitor_price_range", "竞品价格区间", "경쟁가격대"]),
+    top_seller_count: readRowNumber(row, ["top_seller_count", "头部卖家数量", "상위판매자수"]),
+    review_issue_summary: readRowString(row, ["review_issue_summary", "评论集中问题", "리뷰집중문제"]),
+    negative_review_keywords: readRowString(row, ["negative_review_keywords", "差评关键词", "부정리뷰키워드"]),
+    improvement_points: readRowString(row, ["improvement_points", "可改进点", "개선포인트"]),
+  };
+}
+
+function readRowString(row: Record<string, unknown>, candidates: string[]) {
+  for (const candidate of candidates) {
+    const entry = Object.entries(row).find(([key]) => normalizeImportKey(key) === normalizeImportKey(candidate));
+    if (!entry) continue;
+    const value = String(entry[1] ?? "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function readRowNumber(row: Record<string, unknown>, candidates: string[]) {
+  const raw = readRowString(row, candidates);
+  if (!raw) return 0;
+  const parsed = Number(raw.toString().replace(/,/g, "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function readRowBoolean(row: Record<string, unknown>, candidates: string[], fallback = false) {
+  const raw = readRowString(row, candidates).toLowerCase();
+  if (!raw) return fallback;
+  return ["true", "1", "yes", "y", "是", "需要", "예", "네"].includes(raw);
+}
+
+function normalizeImportKey(value: string) {
+  return value.toLowerCase().replace(/\s+/g, "").replace(/[_-]/g, "");
+}
+
+function mapCategoryValue(value: string): OpportunityCategory {
+  const normalized = value.trim().toLowerCase();
+  if (["窗帘", "窗簾", "windowcurtain", "curtain", "커튼"].includes(normalized)) return "window_curtain";
+  if (["浴室帘", "浴室簾", "bathroomcurtain", "showercurtain", "샤워커튼"].includes(normalized)) return "bathroom_curtain";
+  if (["生活用品", "household", "living", "생활용품"].includes(normalized)) return "household";
+  if (["儿童用品", "kids", "children", "아동용품"].includes(normalized)) return "kids";
+  if (["户外用品", "outdoor", "아웃도어"].includes(normalized)) return "outdoor";
+  return "other";
+}
+
+function mapDirectionValue(value: string): OpportunityDirection {
+  const normalized = value.trim().toLowerCase();
+  if (["rocketgrowth", "rocket growth", "rg"].includes(normalized)) return "rocket_growth";
+  if (["pb", "pbsupply", "pb供应", "pb供货", "pb공급"].includes(normalized)) return "pb_supply";
+  if (["ownbrand", "自有品牌", "자체브랜드"].includes(normalized)) return "own_brand";
+  return "general";
+}
+
+function mapLevelValue(value: string, fallback: OpportunityLevel): OpportunityLevel {
+  const normalized = value.trim().toLowerCase();
+  if (["高", "high", "높음"].includes(normalized)) return "high";
+  if (["中", "medium", "mid", "중간"].includes(normalized)) return "medium";
+  if (["低", "low", "낮음"].includes(normalized)) return "low";
+  return fallback;
+}
+
+function mapStatusValue(value: string): OpportunityStatus {
+  const normalized = value.trim().toLowerCase();
+  if (["待分析", "pendinganalysis", "analysispending", "분석대기"].includes(normalized)) return "pending_analysis";
+  if (["可测试", "testable", "테스트가능"].includes(normalized)) return "testable";
+  if (["高潜力", "highpotential", "고잠재력"].includes(normalized)) return "high_potential";
+  if (["暂缓", "paused", "보류"].includes(normalized)) return "paused";
+  if (["放弃", "dropped", "제외", "폐기"].includes(normalized)) return "dropped";
+  if (["已进入执行", "inexecution", "실행진입"].includes(normalized)) return "in_execution";
+  return "pending_analysis";
+}
+
+function mapNextActionValue(value: string): OpportunityNextAction {
+  const normalized = value.trim().toLowerCase();
+  if (["继续采集竞品", "collectcompetitors", "경쟁상품추가수집"].includes(normalized)) return "collect_competitors";
+  if (["计算利润", "calculateprofit", "수익계산"].includes(normalized)) return "calculate_profit";
+  if (["找中国供应商", "findsupplier", "공급사찾기"].includes(normalized)) return "find_supplier";
+  if (["申请样品", "applysample", "샘플요청"].includes(normalized)) return "apply_sample";
+  if (["准备rg提案", "preparergproposal", "rg제안준비"].includes(normalized)) return "prepare_rg_proposal";
+  if (["准备pb提案", "preparepbproposal", "pb제안준비"].includes(normalized)) return "prepare_pb_proposal";
+  if (["上架测试", "launchtest", "테스트등록"].includes(normalized)) return "launch_test";
+  return "pause";
 }
 
 function toggleMetric(
