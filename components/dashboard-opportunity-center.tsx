@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownUp,
+  BrainCircuit,
   ExternalLink,
   Filter,
   FolderPlus,
@@ -36,6 +37,13 @@ import {
   loadLocalProductOpportunities,
   updateLocalProductOpportunity,
 } from "@/lib/product-opportunities-local";
+import {
+  appendLocalAIAnalysisRecord,
+  appendLocalAIGeneratedTasks,
+  loadLocalAIAnalysisRecords,
+  loadLocalAIGeneratedTasks,
+} from "@/lib/ai-workspace-local";
+import { pickLocalizedText, type AIAnalysisRecord, type AIGeneratedTaskRecord } from "@/lib/ai-workspace";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -131,8 +139,30 @@ export function DashboardOpportunityCenter() {
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [analysisMap, setAnalysisMap] = useState<Record<string, AIAnalysisRecord>>({});
+  const [generatedTaskMap, setGeneratedTaskMap] = useState<Record<string, AIGeneratedTaskRecord[]>>({});
+  const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [guestSessionAttempted, setGuestSessionAttempted] = useState(false);
   const [storageMode, setStorageMode] = useState<"remote" | "local">("remote");
+  const aiCopy = useMemo(
+    () => ({
+      analyze: locale === "ko" ? "AI 종합 분석" : "AI 综合分析",
+      analyzing: locale === "ko" ? "분석 중..." : "分析中...",
+      result: locale === "ko" ? "AI 분석 결과" : "AI 分析结果",
+      noResult: locale === "ko" ? "아직 AI 분석 결과가 없습니다." : "当前还没有 AI 分析结果。",
+      finalConclusion: locale === "ko" ? "최종 결론" : "最终结论",
+      direction: locale === "ko" ? "推荐方向" : "推荐方向",
+      nextAction: locale === "ko" ? "다음 액션" : "下一步动作",
+      biggestOpportunity: locale === "ko" ? "最大机会" : "最大机会",
+      biggestRisk: locale === "ko" ? "最大风险" : "最大风险",
+      reviewPain: locale === "ko" ? "差评痛点" : "差评痛点",
+      improvement: locale === "ko" ? "改进建议" : "改进建议",
+      profit: locale === "ko" ? "利润判断" : "利润判断",
+      dataGaps: locale === "ko" ? "待补字段" : "待补字段",
+      generatedTasks: locale === "ko" ? "자동生成 작업" : "自动生成任务",
+    }),
+    [locale],
+  );
 
   const statusOptions = useMemo(
     () => [
@@ -212,6 +242,10 @@ export function DashboardOpportunityCenter() {
   }, []);
 
   useEffect(() => {
+    void loadAIArtifacts();
+  }, []);
+
+  useEffect(() => {
     setPage(1);
   }, [filters, metricFilter, sortKey, sortDirection]);
 
@@ -260,6 +294,38 @@ export function DashboardOpportunityCenter() {
       setBanner({ tone: "default", message: localItems.length >= 0 ? t.localMode : t.loadError });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAIArtifacts() {
+    try {
+      const [analysisResponse, taskResponse] = await Promise.all([
+        fetch("/api/ai/analysis", { cache: "no-store" }),
+        fetch("/api/ai/tasks", { cache: "no-store" }),
+      ]);
+
+      const analysisPayload = (await analysisResponse.json()) as { items?: AIAnalysisRecord[] };
+      const taskPayload = (await taskResponse.json()) as { items?: AIGeneratedTaskRecord[] };
+      const analyses = (analysisPayload.items ?? []).length ? analysisPayload.items ?? [] : loadLocalAIAnalysisRecords();
+      const tasks = (taskPayload.items ?? []).length ? taskPayload.items ?? [] : loadLocalAIGeneratedTasks();
+
+      setAnalysisMap(Object.fromEntries(analyses.map((item) => [item.source_id, item])));
+      setGeneratedTaskMap(
+        tasks.reduce<Record<string, AIGeneratedTaskRecord[]>>((result, task) => {
+          result[task.source_id] = [...(result[task.source_id] ?? []), task];
+          return result;
+        }, {}),
+      );
+    } catch {
+      const analyses = loadLocalAIAnalysisRecords();
+      const tasks = loadLocalAIGeneratedTasks();
+      setAnalysisMap(Object.fromEntries(analyses.map((item) => [item.source_id, item])));
+      setGeneratedTaskMap(
+        tasks.reduce<Record<string, AIGeneratedTaskRecord[]>>((result, task) => {
+          result[task.source_id] = [...(result[task.source_id] ?? []), task];
+          return result;
+        }, {}),
+      );
     }
   }
 
@@ -588,6 +654,38 @@ export function DashboardOpportunityCenter() {
       await loadItems();
     } catch {
       setBanner({ tone: "danger", message: t.deleteError });
+    }
+  }
+
+  async function onAnalyze(item: ProductOpportunityRecord) {
+    setAnalyzingIds((current) => [...current, item.id]);
+    try {
+      const response = await fetch("/api/ai/analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_type: "product_opportunity",
+          source_id: item.id,
+          source_title: item.title,
+          task_type: "product_analysis",
+          source_snapshot: item,
+        }),
+      });
+      const payload = (await response.json()) as { item?: AIAnalysisRecord; tasks?: AIGeneratedTaskRecord[] };
+      if (payload.item) {
+        setAnalysisMap((current) => ({ ...current, [item.id]: payload.item! }));
+        setGeneratedTaskMap((current) => ({ ...current, [item.id]: payload.tasks ?? [] }));
+        appendLocalAIAnalysisRecord(payload.item);
+        appendLocalAIGeneratedTasks(payload.tasks ?? []);
+        if (detailItem?.id === item.id) {
+          setDetailItem(item);
+        }
+        setBanner({ tone: "success", message: aiCopy.analyze });
+      }
+    } catch {
+      setBanner({ tone: "danger", message: t.saveError });
+    } finally {
+      setAnalyzingIds((current) => current.filter((id) => id !== item.id));
     }
   }
 
@@ -937,6 +1035,18 @@ export function DashboardOpportunityCenter() {
                                   }}
                                 >
                                   {t.actions.view}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void onAnalyze(item);
+                                  }}
+                                  disabled={analyzingIds.includes(item.id)}
+                                >
+                                  <BrainCircuit className="h-4 w-4" />
+                                  {analyzingIds.includes(item.id) ? aiCopy.analyzing : aiCopy.analyze}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1327,6 +1437,46 @@ export function DashboardOpportunityCenter() {
                 <DetailRow label={t.detail.labels.priceWarRisk} value={detailItem.price_war_risk ? t.options.riskLabel[detailItem.price_war_risk] : "-"} />
                 <DetailRow label={t.detail.labels.supplyChainRisk} value={detailItem.supply_chain_risk ? t.options.riskLabel[detailItem.supply_chain_risk] : "-"} />
               </div>
+            </DrawerSection>
+
+            <DrawerSection title={aiCopy.result}>
+              {analysisMap[detailItem.id] ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <DetailRow label={aiCopy.finalConclusion} value={analysisMap[detailItem.id].output_result.finalConclusion} />
+                    <DetailRow label={aiCopy.direction} value={analysisMap[detailItem.id].output_result.recommendedDirection} />
+                    <DetailRow label={aiCopy.nextAction} value={pickLocalizedText(analysisMap[detailItem.id].output_result.nextAction, locale)} multiline />
+                    <DetailRow label={aiCopy.dataGaps} value={analysisMap[detailItem.id].output_result.dataGaps.join(", ") || "-"} multiline />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <DetailRow label={aiCopy.biggestOpportunity} value={pickLocalizedText(analysisMap[detailItem.id].output_result.biggestOpportunity, locale)} multiline />
+                    <DetailRow label={aiCopy.biggestRisk} value={pickLocalizedText(analysisMap[detailItem.id].output_result.biggestRisk, locale)} multiline />
+                    <DetailRow label={aiCopy.reviewPain} value={pickLocalizedText(analysisMap[detailItem.id].output_result.reviewPainPoint, locale)} multiline />
+                    <DetailRow label={aiCopy.improvement} value={pickLocalizedText(analysisMap[detailItem.id].output_result.improvementSuggestion, locale)} multiline />
+                    <DetailRow label={aiCopy.profit} value={pickLocalizedText(analysisMap[detailItem.id].output_result.profitJudgement, locale)} multiline />
+                  </div>
+                  <div className="rounded-[18px] border border-slate-200 bg-slate-50/55 p-4">
+                    <p className="text-sm font-semibold text-slate-950">{aiCopy.generatedTasks}</p>
+                    <div className="mt-3 space-y-2">
+                      {(generatedTaskMap[detailItem.id] ?? []).map((task) => (
+                        <div key={task.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-sm font-semibold text-slate-950">{pickLocalizedText(task.task_title, locale)}</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-500">{pickLocalizedText(task.task_content, locale)}</p>
+                        </div>
+                      ))}
+                      {!(generatedTaskMap[detailItem.id] ?? []).length ? <p className="text-sm text-slate-500">{aiCopy.noResult}</p> : null}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-4 rounded-[18px] border border-slate-200 bg-slate-50/55 p-4">
+                  <p className="text-sm text-slate-500">{aiCopy.noResult}</p>
+                  <Button variant="outline" onClick={() => void onAnalyze(detailItem)} disabled={analyzingIds.includes(detailItem.id)}>
+                    <BrainCircuit className="h-4 w-4" />
+                    {analyzingIds.includes(detailItem.id) ? aiCopy.analyzing : aiCopy.analyze}
+                  </Button>
+                </div>
+              )}
             </DrawerSection>
           </div>
         ) : null}

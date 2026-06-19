@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { EmptyModulePage } from "@/components/empty-module-page";
+import { BusinessAIModule } from "@/components/business-ai-module";
 
 export default function PricingProfitPage() {
   return (
     <AppShell>
-      <EmptyModulePage pageKey="pricing" bullets={[]} />
+      <BusinessAIModule kind="pricing" taskType="profit_analysis" />
     </AppShell>
   );
 }
