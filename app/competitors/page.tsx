@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { EmptyModulePage } from "@/components/empty-module-page";
+import { CompetitorLibraryWorkbench } from "@/components/competitor-library-workbench";
 
 export default function CompetitorsPage() {
   return (
     <AppShell>
-      <EmptyModulePage pageKey="competitors" bullets={[]} />
+      <CompetitorLibraryWorkbench />
     </AppShell>
   );
 }

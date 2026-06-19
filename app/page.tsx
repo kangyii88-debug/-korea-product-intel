@@ -1,13 +1,12 @@
 "use client";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardOpportunityCenter } from "@/components/dashboard-opportunity-center";
+import { HotProductsIntelligenceWorkbench } from "@/components/hot-products-intelligence-workbench";
 
 export default function Home() {
   return (
     <AppShell>
-      <DashboardOpportunityCenter />
+      <HotProductsIntelligenceWorkbench />
     </AppShell>
   );
 }
-

@@ -6,16 +6,13 @@ import {
   BarChart3,
   BrainCircuit,
   Boxes,
-  Calculator,
   ClipboardCheck,
   FlaskConical,
   Lightbulb,
   LogOut,
-  MessageSquareWarning,
   PackageSearch,
   Radar,
   SearchCheck,
-  ShieldAlert,
   TrendingUp,
 } from "lucide-react";
 import { AIProviderCard } from "@/components/ai-provider-card";
@@ -46,14 +43,14 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         { href: "/", label: t.nav.items.dashboard, icon: TrendingUp },
         { href: "/opportunities", label: t.nav.items.opportunities, icon: PackageSearch },
         { href: "/competitors", label: t.nav.items.competitors, icon: SearchCheck },
-        { href: "/reviews", label: t.nav.items.reviews, icon: MessageSquareWarning },
-        { href: "/pricing-profit", label: t.nav.items.pricing, icon: Calculator },
-        { href: "/risk-logistics", label: t.nav.items.risks, icon: ShieldAlert },
       ],
     },
     {
       label: t.nav.groups.workspace,
       items: [
+        { href: "/reviews", label: t.nav.items.reviews, icon: BrainCircuit },
+        { href: "/pricing-profit", label: t.nav.items.pricing, icon: ClipboardCheck },
+        { href: "/risk-logistics", label: t.nav.items.risks, icon: Radar },
         { href: "/testing-db", label: t.nav.items.testingDb, icon: FlaskConical },
         { href: "/development", label: t.nav.items.development, icon: Lightbulb },
         { href: "/rocket-growth", label: t.nav.items.rocketGrowth, icon: BarChart3 },
@@ -130,6 +127,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
                       <Link
                         key={item.href}
                         href={item.href}
+                        title={item.label}
                         className={cn(
                           "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
                           active ? "bg-slate-100 text-slate-950" : "text-slate-600 hover:bg-white hover:text-slate-950",

@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { EmptyModulePage } from "@/components/empty-module-page";
+import { DashboardOpportunityCenter } from "@/components/dashboard-opportunity-center";
 
 export default function OpportunitiesPage() {
   return (
     <AppShell>
-      <EmptyModulePage pageKey="opportunities" bullets={[]} />
+      <DashboardOpportunityCenter />
     </AppShell>
   );
 }
