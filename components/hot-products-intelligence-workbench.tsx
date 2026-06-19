@@ -577,17 +577,19 @@ export function HotProductsIntelligenceWorkbench() {
           </div>
         </SectionCard>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_440px] xl:items-start">
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px] xl:items-start">
           <SectionCard title={t.list.title} description={t.list.description} className="min-w-0 overflow-hidden">
-            <div className="flex min-h-[920px] flex-col">
+            <div className="flex min-h-[780px] flex-col">
               <div className="flex-1 space-y-3 overflow-hidden">
                 {pagedItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedId(item.id)}
-                    className={`grid min-w-0 gap-4 rounded-[18px] border p-5 text-left transition-colors xl:grid-cols-[minmax(0,2fr)_170px_150px_180px_160px] ${
-                      item.id === selectedId ? "border-slate-900 bg-slate-950 text-white" : "border-slate-200 bg-slate-50/55 hover:bg-slate-50"
+                    className={`grid w-full min-w-0 gap-4 rounded-[18px] border p-5 text-left transition-all xl:grid-cols-[minmax(0,1.7fr)_150px_150px_180px_180px] ${
+                      item.id === selectedId
+                        ? "border-sky-200 bg-[linear-gradient(135deg,#fffdf7_0%,#f6f9ff_55%,#eef6ff_100%)] shadow-[0_10px_30px_rgba(15,23,42,0.08)]"
+                        : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
                     <div className="min-w-0">
@@ -601,13 +603,13 @@ export function HotProductsIntelligenceWorkbench() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className={`truncate text-base font-semibold tracking-[-0.02em] ${item.id === selectedId ? "text-white" : "text-slate-950"}`}>
+                          <p className="truncate text-base font-semibold tracking-[-0.02em] text-slate-950">
                             {locale === "ko" ? item.titleKo : item.titleZh || item.titleKo}
                           </p>
-                          <p className={`mt-1 truncate text-sm ${item.id === selectedId ? "text-slate-300" : "text-slate-500"}`}>
+                          <p className="mt-1 truncate text-sm text-slate-500">
                             {(locale === "ko" ? item.titleZh : item.titleKo) || t.common.none}
                           </p>
-                          <p className={`mt-2 text-sm ${item.id === selectedId ? "text-slate-300" : "text-slate-500"}`}>
+                          <p className="mt-2 text-sm text-slate-500">
                             {item.brand || t.common.noBrand} · {item.category} · {item.sourceLabel}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2">
@@ -665,7 +667,7 @@ export function HotProductsIntelligenceWorkbench() {
             </div>
           </SectionCard>
 
-          <Card className="sticky top-6 min-h-[920px] overflow-hidden">
+          <Card className="sticky top-6 min-h-[780px] overflow-hidden">
             <CardHeader className="space-y-4">
               {selected ? (
                 <>
@@ -1543,9 +1545,9 @@ function FilterSelect({
 
 function ListMetricBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className="rounded-2xl border border-slate-200 bg-white/88 px-4 py-3">
       <p className="text-xs font-medium text-slate-500">{label}</p>
-      <div className="mt-3 space-y-2 text-sm font-semibold text-slate-950">{children}</div>
+      <div className="mt-3 space-y-2 text-sm font-semibold leading-6 text-slate-950">{children}</div>
     </div>
   );
 }
