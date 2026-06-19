@@ -52,7 +52,7 @@ export function LocalReportView({ productId }: { productId: string }) {
 
   if (!product || !analysis) {
     return (
-      <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8">
+      <div className="w-full px-5 py-10 sm:px-8 lg:px-10 2xl:px-12">
         <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center shadow-sm">
           <p className="text-lg font-semibold">{t.report.notFoundTitle}</p>
           <p className="mt-3 text-sm text-muted-foreground">{t.report.notFoundDescription}</p>
@@ -174,7 +174,7 @@ export function LocalReportView({ productId }: { productId: string }) {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={t.pages.report.eyebrow} title={t.pages.report.title} description={t.pages.report.description} />
-      <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:px-8">
+      <div className="w-full space-y-6 px-5 py-6 sm:px-8 lg:px-10 2xl:px-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/testing-db" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
@@ -233,7 +233,7 @@ export function LocalReportView({ productId }: { productId: string }) {
             ) : null}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             {topMetrics.map((item) => (
               <TopMetric key={item.label} {...item} />
             ))}
@@ -241,10 +241,10 @@ export function LocalReportView({ productId }: { productId: string }) {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
+      <section className="grid gap-4 2xl:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-3">
         <ActionPanel title={t.report.sections.next} actions={actionButtons} />
 
-        <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm xl:col-span-2">
+        <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm xl:col-span-2 2xl:col-span-1">
           <div className="flex flex-wrap gap-2">
             {analysis.statusSuggestions.map((status) => (
               <Button key={status} variant="outline" onClick={() => updateStatus(status)}>
@@ -271,7 +271,7 @@ export function LocalReportView({ productId }: { productId: string }) {
         </section>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
         <InfoCard title={t.report.sections.basic}>
           <Info label={t.report.labels.nameKo} value={product.productNameKo} />
           <Info label={t.report.labels.nameZh} value={product.productNameZh} />
