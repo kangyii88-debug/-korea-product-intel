@@ -36,6 +36,7 @@ import {
 } from "@/lib/competitor-library-local";
 
 type SampleRow = Record<string, unknown>;
+const PAGE_SIZE = 6;
 
 export function CompetitorLibraryWorkbench() {
   const { locale } = useLocale();
@@ -43,6 +44,7 @@ export function CompetitorLibraryWorkbench() {
   const [items, setItems] = useState<CompetitorLibraryItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const loaded = loadLocalCompetitorLibrary();
@@ -56,16 +58,25 @@ export function CompetitorLibraryWorkbench() {
   }, [items.length]);
 
   const filtered = items;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     if (!filtered.length) {
       setSelectedId(null);
       return;
     }
-    if (!selectedId || !filtered.some((item) => item.id === selectedId)) {
-      setSelectedId(filtered[0].id);
+    if (!selectedId || !pagedItems.some((item) => item.id === selectedId)) {
+      setSelectedId(pagedItems[0]?.id ?? filtered[0].id);
     }
-  }, [filtered, selectedId]);
+  }, [filtered, pagedItems, selectedId]);
 
   const selected = filtered.find((item) => item.id === selectedId) ?? items.find((item) => item.id === selectedId) ?? null;
 
@@ -220,10 +231,10 @@ export function CompetitorLibraryWorkbench() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_440px]">
-          <div className="space-y-6">
-            <SectionCard title={t.list.title} description={t.list.description}>
-              <div className="space-y-3">
-                {filtered.map((item) => (
+          <SectionCard title={t.list.title} description={t.list.description} className="min-w-0 overflow-hidden">
+            <div className="flex min-h-[820px] flex-col">
+              <div className="flex-1 space-y-3 overflow-hidden">
+                {pagedItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -252,10 +263,29 @@ export function CompetitorLibraryWorkbench() {
                 ))}
                 {!filtered.length ? <EmptyPanel message={t.list.empty} /> : null}
               </div>
-            </SectionCard>
-          </div>
+              {filtered.length > 0 ? (
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate-500">
+                    {locale === "ko" ? `${page} / ${totalPages} 페이지` : `第 ${page} / ${totalPages} 页`}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      {locale === "ko" ? "이전 페이지" : "上一页"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    >
+                      {locale === "ko" ? "다음 페이지" : "下一页"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </SectionCard>
 
-          <Card className="h-fit overflow-hidden">
+          <Card className="sticky top-6 min-h-[820px] overflow-hidden">
             <CardHeader className="space-y-4">
               {selected ? (
                 <>
