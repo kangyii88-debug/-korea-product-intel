@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { BusinessAIModule } from "@/components/business-ai-module";
+import { PricingProfitWorkbench } from "@/components/pricing-profit-workbench";
 
 export default function PricingProfitPage() {
   return (
     <AppShell>
-      <BusinessAIModule kind="pricing" taskType="profit_analysis" />
+      <PricingProfitWorkbench />
     </AppShell>
   );
 }

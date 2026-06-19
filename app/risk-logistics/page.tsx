@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { BusinessAIModule } from "@/components/business-ai-module";
+import { RiskLogisticsWorkbench } from "@/components/risk-logistics-workbench";
 
 export default function RiskLogisticsPage() {
   return (
     <AppShell>
-      <BusinessAIModule kind="risks" taskType="risk_analysis" />
+      <RiskLogisticsWorkbench />
     </AppShell>
   );
 }
