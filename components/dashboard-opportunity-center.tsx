@@ -538,12 +538,12 @@ export function DashboardOpportunityCenter() {
         }
       />
 
-      <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:px-10 2xl:px-12">
+      <div className="flex w-full flex-col gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:px-10 2xl:px-12">
         {banner ? <Banner tone={banner.tone} message={banner.message} onClose={() => setBanner(null)} /> : null}
 
         <Card>
           <CardContent className="p-5 sm:p-6">
-            <div className="grid gap-4 2xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(360px,1.6fr)] xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(300px,1.35fr)]">
+            <div className="grid gap-4 2xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(420px,1.8fr)] xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(340px,1.45fr)]">
               <FilterSelect
                 label={t.filters.status}
                 value={filters.status}
@@ -599,7 +599,7 @@ export function DashboardOpportunityCenter() {
           </CardContent>
         </Card>
 
-        <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-8 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
           <MetricCard
             label={t.metrics.monthNew.label}
             note={t.metrics.monthNew.note}
@@ -668,7 +668,7 @@ export function DashboardOpportunityCenter() {
         ) : items.length === 0 ? (
           <EmptyOpportunityState locale={locale} onAdd={openCreateDrawer} onImport={onImport} />
         ) : (
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_440px]">
             <Card>
               <CardHeader className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
                 <div>
@@ -679,7 +679,7 @@ export function DashboardOpportunityCenter() {
               </CardHeader>
               <CardContent className="overflow-hidden p-0">
                 <div className="overflow-x-auto">
-                  <table className="min-w-[1360px] w-full border-separate border-spacing-0">
+                  <table className="min-w-[1520px] w-full border-separate border-spacing-0">
                     <thead>
                       <tr className="bg-slate-50/70">
                         <TableHeaderCell>{t.table.columns.opportunity}</TableHeaderCell>
