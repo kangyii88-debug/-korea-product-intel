@@ -23,6 +23,7 @@ export function LoginForm({
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"error" | "success">("error");
   const [loading, setLoading] = useState(false);
+  const guestButtonLabel = locale === "ko" ? "비밀번호 없이 바로 입장" : "免密码直接进入";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,6 +54,23 @@ export function LoginForm({
     setMessageTone("success");
     setMessage(t.loginForm.magicLinkSent);
     setLoading(false);
+  }
+
+  async function enterWithoutPassword() {
+    setLoading(true);
+    setMessage("");
+    setMessageTone("error");
+
+    const supabase = createClient({ url: supabaseUrl, anonKey: supabaseAnonKey });
+    if (supabase) {
+      const result = await supabase.auth.signInAnonymously();
+      if (!result.error) {
+        window.location.href = next;
+        return;
+      }
+    }
+
+    window.location.href = `/api/auth/demo?next=${encodeURIComponent(next)}`;
   }
 
   return (
@@ -108,10 +126,10 @@ export function LoginForm({
           variant="outline"
           className="h-11 w-full rounded-lg border-slate-200 bg-white"
           onClick={() => {
-            window.location.href = `/api/auth/demo?next=${encodeURIComponent(next)}`;
+            void enterWithoutPassword();
           }}
         >
-          {t.loginForm.demoAccess}
+          {guestButtonLabel}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

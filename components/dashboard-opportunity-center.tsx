@@ -29,6 +29,7 @@ import {
   type ProductOpportunityInput,
   type ProductOpportunityRecord,
 } from "@/lib/product-opportunities";
+import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 type MetricKey = "monthNew" | "highPotential" | "rg" | "pb" | "ownBrand" | "highRisk" | "dropped" | "tasks";
@@ -119,6 +120,7 @@ export function DashboardOpportunityCenter() {
   const [editingItem, setEditingItem] = useState<ProductOpportunityRecord | null>(null);
   const [form, setForm] = useState<ProductOpportunityInput>(DEFAULT_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [guestSessionAttempted, setGuestSessionAttempted] = useState(false);
 
   const statusOptions = useMemo(
     () => [
@@ -208,6 +210,13 @@ export function DashboardOpportunityCenter() {
       const data = (await response.json()) as { items?: ProductOpportunityRecord[]; error?: string };
 
       if (data.error === "unauthorized") {
+        if (!guestSessionAttempted) {
+          const signedIn = await ensureGuestSession();
+          setGuestSessionAttempted(true);
+          if (signedIn) {
+            return await loadItems();
+          }
+        }
         setItems([]);
         setBanner({ tone: "default", message: t.authHint });
         return;
@@ -233,6 +242,14 @@ export function DashboardOpportunityCenter() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function ensureGuestSession() {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return false;
+
+    const result = await supabase.auth.signInAnonymously();
+    return !result.error;
   }
 
   function openCreateDrawer() {
@@ -336,24 +353,12 @@ export function DashboardOpportunityCenter() {
     setSubmitting(true);
 
     try {
-      const method = drawerMode === "edit" && editingItem ? "PATCH" : "POST";
-      const url = drawerMode === "edit" && editingItem ? `/api/product-opportunities/${editingItem.id}` : "/api/product-opportunities";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = (await response.json()) as { item?: ProductOpportunityRecord; error?: string };
-      if (!response.ok || data.error) {
-        setBanner({
-          tone: "danger",
-          message:
-            data.error === "unauthorized" || data.error === "supabase_not_configured" ? t.authHint : t.saveError,
-        });
-        return;
-      }
+      const result = await submitOpportunityRequest(
+        drawerMode === "edit" && editingItem ? `/api/product-opportunities/${editingItem.id}` : "/api/product-opportunities",
+        drawerMode === "edit" && editingItem ? "PATCH" : "POST",
+        form,
+      );
+      if (!result.ok) return;
 
       setBanner({ tone: "success", message: t.saveSuccess });
       closeDrawer();
@@ -365,19 +370,45 @@ export function DashboardOpportunityCenter() {
     }
   }
 
+  async function submitOpportunityRequest(url: string, method: "POST" | "PATCH", payload: ProductOpportunityInput) {
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = (await response.json()) as { item?: ProductOpportunityRecord; error?: string };
+    if (response.ok && !data.error) {
+      return { ok: true as const };
+    }
+
+    if (data.error === "unauthorized") {
+      const signedIn = await ensureGuestSession();
+      if (signedIn) {
+        const retryResponse = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const retryData = (await retryResponse.json()) as { item?: ProductOpportunityRecord; error?: string };
+        if (retryResponse.ok && !retryData.error) {
+          return { ok: true as const };
+        }
+      }
+    }
+
+    setBanner({
+      tone: "danger",
+      message: data.error === "unauthorized" || data.error === "supabase_not_configured" ? t.authHint : t.saveError,
+    });
+    return { ok: false as const };
+  }
+
   async function onDelete(item: ProductOpportunityRecord) {
     if (!window.confirm(t.deleteConfirm)) return;
     try {
-      const response = await fetch(`/api/product-opportunities/${item.id}`, { method: "DELETE" });
-      const data = (await response.json()) as { ok?: boolean; error?: string };
-      if (!response.ok || data.error) {
-        setBanner({
-          tone: "danger",
-          message:
-            data.error === "unauthorized" || data.error === "supabase_not_configured" ? t.authHint : t.deleteError,
-        });
-        return;
-      }
+      const removed = await deleteOpportunity(item.id);
+      if (!removed) return;
 
       setBanner({ tone: "success", message: t.deleteSuccess });
       if (detailItem?.id === item.id) {
@@ -387,6 +418,32 @@ export function DashboardOpportunityCenter() {
     } catch {
       setBanner({ tone: "danger", message: t.deleteError });
     }
+  }
+
+  async function deleteOpportunity(id: string) {
+    const response = await fetch(`/api/product-opportunities/${id}`, { method: "DELETE" });
+    const data = (await response.json()) as { ok?: boolean; error?: string };
+
+    if (response.ok && !data.error) {
+      return true;
+    }
+
+    if (data.error === "unauthorized") {
+      const signedIn = await ensureGuestSession();
+      if (signedIn) {
+        const retryResponse = await fetch(`/api/product-opportunities/${id}`, { method: "DELETE" });
+        const retryData = (await retryResponse.json()) as { ok?: boolean; error?: string };
+        if (retryResponse.ok && !retryData.error) {
+          return true;
+        }
+      }
+    }
+
+    setBanner({
+      tone: "danger",
+      message: data.error === "unauthorized" || data.error === "supabase_not_configured" ? t.authHint : t.deleteError,
+    });
+    return false;
   }
 
   return (
@@ -1523,4 +1580,3 @@ function formatPercent(value: number) {
 function interpolate(template: string, values: Record<string, string>) {
   return Object.entries(values).reduce((result, [key, value]) => result.replaceAll(`{${key}}`, value), template);
 }
-
