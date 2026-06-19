@@ -29,6 +29,12 @@ import {
   type ProductOpportunityInput,
   type ProductOpportunityRecord,
 } from "@/lib/product-opportunities";
+import {
+  createLocalProductOpportunity,
+  deleteLocalProductOpportunity,
+  loadLocalProductOpportunities,
+  updateLocalProductOpportunity,
+} from "@/lib/product-opportunities-local";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -121,6 +127,7 @@ export function DashboardOpportunityCenter() {
   const [form, setForm] = useState<ProductOpportunityInput>(DEFAULT_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [guestSessionAttempted, setGuestSessionAttempted] = useState(false);
+  const [storageMode, setStorageMode] = useState<"remote" | "local">("remote");
 
   const statusOptions = useMemo(
     () => [
@@ -217,14 +224,18 @@ export function DashboardOpportunityCenter() {
             return await loadItems();
           }
         }
-        setItems([]);
-        setBanner({ tone: "default", message: t.authHint });
+        const localItems = loadLocalProductOpportunities();
+        setStorageMode("local");
+        setItems(localItems);
+        setBanner({ tone: "default", message: t.localMode });
         return;
       }
 
       if (data.error === "supabase_not_configured") {
-        setItems([]);
-        setBanner({ tone: "default", message: t.dbHint });
+        const localItems = loadLocalProductOpportunities();
+        setStorageMode("local");
+        setItems(localItems);
+        setBanner({ tone: "default", message: t.localMode });
         return;
       }
 
@@ -235,10 +246,13 @@ export function DashboardOpportunityCenter() {
       }
 
       setItems(data.items ?? []);
+      setStorageMode("remote");
       setBanner(null);
     } catch {
-      setItems([]);
-      setBanner({ tone: "danger", message: t.loadError });
+      const localItems = loadLocalProductOpportunities();
+      setStorageMode("local");
+      setItems(localItems);
+      setBanner({ tone: "default", message: localItems.length >= 0 ? t.localMode : t.loadError });
     } finally {
       setLoading(false);
     }
@@ -353,6 +367,18 @@ export function DashboardOpportunityCenter() {
     setSubmitting(true);
 
     try {
+      if (storageMode === "local") {
+        if (drawerMode === "edit" && editingItem) {
+          updateLocalProductOpportunity(editingItem.id, form);
+        } else {
+          createLocalProductOpportunity(form);
+        }
+        setItems(loadLocalProductOpportunities());
+        setBanner({ tone: "success", message: t.saveSuccess });
+        closeDrawer();
+        return;
+      }
+
       const result = await submitOpportunityRequest(
         drawerMode === "edit" && editingItem ? `/api/product-opportunities/${editingItem.id}` : "/api/product-opportunities",
         drawerMode === "edit" && editingItem ? "PATCH" : "POST",
@@ -395,11 +421,33 @@ export function DashboardOpportunityCenter() {
           return { ok: true as const };
         }
       }
+
+      setStorageMode("local");
+      if (method === "PATCH" && editingItem) {
+        updateLocalProductOpportunity(editingItem.id, payload);
+      } else {
+        createLocalProductOpportunity(payload);
+      }
+      setItems(loadLocalProductOpportunities());
+      setBanner({ tone: "default", message: t.localMode });
+      return { ok: true as const };
+    }
+
+    if (data.error === "supabase_not_configured") {
+      setStorageMode("local");
+      if (method === "PATCH" && editingItem) {
+        updateLocalProductOpportunity(editingItem.id, payload);
+      } else {
+        createLocalProductOpportunity(payload);
+      }
+      setItems(loadLocalProductOpportunities());
+      setBanner({ tone: "default", message: t.localMode });
+      return { ok: true as const };
     }
 
     setBanner({
       tone: "danger",
-      message: data.error === "unauthorized" || data.error === "supabase_not_configured" ? t.authHint : t.saveError,
+      message: t.saveError,
     });
     return { ok: false as const };
   }
@@ -407,6 +455,16 @@ export function DashboardOpportunityCenter() {
   async function onDelete(item: ProductOpportunityRecord) {
     if (!window.confirm(t.deleteConfirm)) return;
     try {
+      if (storageMode === "local") {
+        deleteLocalProductOpportunity(item.id);
+        setItems(loadLocalProductOpportunities());
+        setBanner({ tone: "success", message: t.deleteSuccess });
+        if (detailItem?.id === item.id) {
+          setDetailItem(null);
+        }
+        return;
+      }
+
       const removed = await deleteOpportunity(item.id);
       if (!removed) return;
 
@@ -437,11 +495,25 @@ export function DashboardOpportunityCenter() {
           return true;
         }
       }
+
+      setStorageMode("local");
+      deleteLocalProductOpportunity(id);
+      setItems(loadLocalProductOpportunities());
+      setBanner({ tone: "default", message: t.localMode });
+      return true;
+    }
+
+    if (data.error === "supabase_not_configured") {
+      setStorageMode("local");
+      deleteLocalProductOpportunity(id);
+      setItems(loadLocalProductOpportunities());
+      setBanner({ tone: "default", message: t.localMode });
+      return true;
     }
 
     setBanner({
       tone: "danger",
-      message: data.error === "unauthorized" || data.error === "supabase_not_configured" ? t.authHint : t.deleteError,
+      message: t.deleteError,
     });
     return false;
   }

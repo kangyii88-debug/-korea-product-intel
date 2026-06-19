@@ -10,6 +10,7 @@ const dashboardOpportunityCopy = {
     importPending: "导入竞品数据功能正在整理中，当前版本已保留入口，稍后会接入真实导入流程。",
     authHint: "当前处于演示或未登录状态，列表可以正常显示为空；如需新增、编辑、删除，请先使用邮箱免密码登录 Supabase 工作区。",
     dbHint: "当前未检测到可用的 Supabase 配置，页面会保持空状态展示。",
+    localMode: "当前已切换到本地工作模式。你现在新增、编辑、删除的数据会保存到当前浏览器，本地使用不受影响；后续接通 Supabase 后可再切回云端模式。",
     loadError: "商品机会加载失败，请稍后重试。",
     saveSuccess: "商品机会已保存。",
     saveError: "保存失败，请检查表单或数据库配置。",
@@ -255,6 +256,7 @@ const dashboardOpportunityCopy = {
     importPending: "경쟁 상품 가져오기 기능은 현재 준비 중입니다. 버튼은 유지되어 있으며 이후 실제 가져오기 흐름을 연결합니다.",
     authHint: "현재 데모 또는 미로그인 상태입니다. 목록은 비어 있는 상태로 표시되며, 추가·수정·삭제를 하려면 Supabase 이메일 로그인부터 진행해 주세요.",
     dbHint: "현재 사용 가능한 Supabase 설정이 없어 페이지는 빈 상태로 유지됩니다.",
+    localMode: "현재 로컬 작업 모드로 전환되었습니다. 지금 추가·수정·삭제하는 데이터는 이 브라우저에 저장되며 바로 사용할 수 있습니다. 이후 Supabase 연결이 준비되면 다시 클라우드 모드로 전환할 수 있습니다.",
     loadError: "상품 기회를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
     saveSuccess: "상품 기회가 저장되었습니다.",
     saveError: "저장에 실패했습니다. 폼 입력값 또는 데이터베이스 설정을 확인해 주세요.",
@@ -496,4 +498,3 @@ const dashboardOpportunityCopy = {
 export function getDashboardOpportunityCopy(locale: AppLocale) {
   return dashboardOpportunityCopy[locale];
 }
-
