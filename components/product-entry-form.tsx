@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -150,15 +150,63 @@ const copy = {
 export function ProductEntryForm() {
   const router = useRouter();
   const { locale } = useLocale();
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [imageValue, setImageValue] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const t = copy[locale];
   const dict = getDictionary(locale);
+
+  const imageCopy =
+    locale === "ko"
+      ? {
+          upload: "이미지 바로 업로드",
+          remove: "이미지 제거",
+          help: "컴퓨터에서 이미지를 바로 선택하면 자동으로 압축 후 미리보기를 보여줍니다. 이미지 링크를 붙여넣어도 됩니다.",
+          uploading: "업로드 중",
+          uploaded: "상품 이미지가 가져와졌습니다.",
+          invalidType: "PNG, JPG, WEBP 또는 GIF 이미지 파일을 선택해 주세요.",
+          failed: "이미지 가져오기에 실패했습니다. 다시 시도해 주세요.",
+        }
+      : {
+          upload: "直接上传图片",
+          remove: "移除图片",
+          help: "可直接从电脑选择图片，系统会自动压缩并预览；也可以继续粘贴图片链接。",
+          uploading: "上传中",
+          uploaded: "商品图片已导入。",
+          invalidType: "请选择 PNG、JPG、WEBP 或 GIF 图片文件。",
+          failed: "图片导入失败，请重试。",
+        };
+
+  async function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage(imageCopy.invalidType);
+      return;
+    }
+
+    setImageUploading(true);
+
+    try {
+      const dataUrl = await convertImageFileToDataUrl(file);
+      setImageValue(dataUrl);
+      setMessage(imageCopy.uploaded);
+    } catch {
+      setMessage(imageCopy.failed);
+    } finally {
+      setImageUploading(false);
+    }
+  }
 
   function submit(formData: FormData) {
     setLoading(true);
     setMessage("");
 
+    formData.set("image", imageValue);
     const product = buildProductFromForm(Object.fromEntries(formData.entries()));
     const products: LocalProduct[] = loadLocalProducts();
     saveLocalProducts([product, ...products]);
@@ -169,6 +217,13 @@ export function ProductEntryForm() {
 
   return (
     <form action={submit} className="space-y-6 rounded-[22px] border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:p-8">
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+        className="hidden"
+        onChange={handleImageChange}
+      />
       <div>
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{dict.productForm.newTitle}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">{dict.productForm.formDescription}</p>
@@ -180,7 +235,16 @@ export function ProductEntryForm() {
           <Field name="productNameZh" label={t.fields.productNameZh} required />
           <SelectField name="platform" label={t.fields.platform} options={platformOptions} />
           <Field name="competitorUrl" label={t.fields.competitorUrl} required />
-          <Field name="image" label={t.fields.image} />
+          <ImageField
+            label={t.fields.image}
+            value={imageValue}
+            onChange={setImageValue}
+            onUpload={() => imageInputRef.current?.click()}
+            onClear={() => setImageValue("")}
+            uploadLabel={imageUploading ? imageCopy.uploading : imageCopy.upload}
+            clearLabel={imageCopy.remove}
+            helpText={imageCopy.help}
+          />
           <Field name="brand" label={t.fields.brand} />
           <Field name="category" label={t.fields.category} required />
           <Field name="owner" label={t.fields.owner} />
@@ -320,4 +384,92 @@ function CheckField({ name, label }: { name: string; label: string }) {
       <span>{label}</span>
     </label>
   );
+}
+
+function ImageField({
+  label,
+  value,
+  onChange,
+  onUpload,
+  onClear,
+  uploadLabel,
+  clearLabel,
+  helpText,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onUpload: () => void;
+  onClear: () => void;
+  uploadLabel: string;
+  clearLabel: string;
+  helpText: string;
+}) {
+  return (
+    <div className="lg:col-span-2">
+      <label className="text-sm font-medium text-slate-700">
+        {label}
+        <div className="mt-2 rounded-[18px] border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-400">
+              {value ? <img src={value} alt={label} className="h-full w-full object-cover" /> : "IMG"}
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <input type="hidden" name="image" value={value} />
+              <input
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder="https://"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={onUpload}>
+                  {uploadLabel}
+                </Button>
+                {value ? (
+                  <Button type="button" variant="ghost" onClick={onClear}>
+                    {clearLabel}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs leading-6 text-slate-500">{helpText}</p>
+            </div>
+          </div>
+        </div>
+      </label>
+    </div>
+  );
+}
+
+async function convertImageFileToDataUrl(file: File) {
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadImageElement(objectUrl);
+    const maxSize = 1200;
+    const ratio = Math.min(1, maxSize / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+    const width = Math.max(1, Math.round((image.naturalWidth || 1) * ratio));
+    const height = Math.max(1, Math.round((image.naturalHeight || 1) * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("canvas_context_missing");
+
+    context.drawImage(image, 0, 0, width, height);
+    const targetType = file.type === "image/png" || file.type === "image/webp" ? file.type : "image/jpeg";
+    return canvas.toDataURL(targetType, targetType === "image/jpeg" ? 0.88 : undefined);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("image_load_failed"));
+    image.src = src;
+  });
 }

@@ -115,6 +115,7 @@ export function DashboardOpportunityCenter() {
   const { locale } = useLocale();
   const t = getDashboardOpportunityCopy(locale);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<ProductOpportunityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<{ tone: "default" | "success" | "danger"; message: string } | null>(null);
@@ -129,6 +130,7 @@ export function DashboardOpportunityCenter() {
   const [form, setForm] = useState<ProductOpportunityInput>(DEFAULT_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [guestSessionAttempted, setGuestSessionAttempted] = useState(false);
   const [storageMode, setStorageMode] = useState<"remote" | "local">("remote");
 
@@ -272,12 +274,14 @@ export function DashboardOpportunityCenter() {
   function openCreateDrawer() {
     setEditingItem(null);
     setForm(DEFAULT_FORM);
+    setImageUploading(false);
     setDrawerMode("create");
   }
 
   function openEditDrawer(item: ProductOpportunityRecord) {
     setEditingItem(item);
     setForm(mapRecordToForm(item));
+    setImageUploading(false);
     setDrawerMode("edit");
   }
 
@@ -285,6 +289,7 @@ export function DashboardOpportunityCenter() {
     setDrawerMode(null);
     setEditingItem(null);
     setSubmitting(false);
+    setImageUploading(false);
   }
 
   function onImport() {
@@ -334,6 +339,33 @@ export function DashboardOpportunityCenter() {
       setBanner({ tone: "danger", message: t.importMessages.failed });
     } finally {
       setImporting(false);
+    }
+  }
+
+  function openImagePicker() {
+    imageFileInputRef.current?.click();
+  }
+
+  async function onImageFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setBanner({ tone: "danger", message: t.form.imageMessages.invalidType });
+      return;
+    }
+
+    setImageUploading(true);
+
+    try {
+      const imageUrl = await convertImageFileToDataUrl(file);
+      setForm((current) => ({ ...current, image_url: imageUrl }));
+      setBanner({ tone: "success", message: t.form.imageMessages.uploaded });
+    } catch {
+      setBanner({ tone: "danger", message: t.form.imageMessages.failed });
+    } finally {
+      setImageUploading(false);
     }
   }
 
@@ -607,6 +639,13 @@ export function DashboardOpportunityCenter() {
         accept=".csv,.xlsx,.xls"
         className="hidden"
         onChange={onImportFileChange}
+      />
+      <input
+        ref={imageFileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+        className="hidden"
+        onChange={onImageFileChange}
       />
       <PageHeader
         eyebrow={t.eyebrow}
@@ -1021,7 +1060,18 @@ export function DashboardOpportunityCenter() {
               <TextField label={t.form.fields.sku} value={form.sku} onChange={(value) => setForm((current) => ({ ...current, sku: value }))} />
               <TextField label={t.form.fields.keyword} value={form.keyword} onChange={(value) => setForm((current) => ({ ...current, keyword: value }))} />
               <TextField label={t.form.fields.coupangUrl} value={form.coupang_url} onChange={(value) => setForm((current) => ({ ...current, coupang_url: value }))} />
-              <TextField label={t.form.fields.imageUrl} value={form.image_url} onChange={(value) => setForm((current) => ({ ...current, image_url: value }))} />
+              <ImageUploadField
+                label={t.form.fields.imageUrl}
+                value={form.image_url}
+                onChange={(value) => setForm((current) => ({ ...current, image_url: value }))}
+                onUpload={openImagePicker}
+                onClear={() => setForm((current) => ({ ...current, image_url: "" }))}
+                uploadLabel={imageUploading ? t.form.imageMessages.uploading : t.form.fields.imageUpload}
+                clearLabel={t.form.fields.imageRemove}
+                helpText={t.form.fields.imageHelp}
+                uploading={imageUploading}
+                previewTitle={form.title || t.form.fields.title}
+              />
               <SelectField
                 label={t.form.fields.category}
                 value={form.category}
@@ -1657,6 +1707,62 @@ function TextAreaField({
   );
 }
 
+function ImageUploadField({
+  label,
+  value,
+  onChange,
+  onUpload,
+  onClear,
+  uploadLabel,
+  clearLabel,
+  helpText,
+  uploading,
+  previewTitle,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onUpload: () => void;
+  onClear: () => void;
+  uploadLabel: string;
+  clearLabel: string;
+  helpText: string;
+  uploading: boolean;
+  previewTitle: string;
+}) {
+  return (
+    <div className="md:col-span-2">
+      <span className="mb-2 block text-sm font-medium text-slate-600">{label}</span>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="shrink-0">
+            <Thumbnail src={value || null} title={previewTitle} large />
+          </div>
+          <div className="min-w-0 flex-1 space-y-3">
+            <input
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder="https://"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-950/5"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={onUpload} disabled={uploading}>
+                {uploadLabel}
+              </Button>
+              {value ? (
+                <Button type="button" variant="ghost" onClick={onClear}>
+                  {clearLabel}
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-xs leading-6 text-slate-500">{helpText}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CheckboxField({
   label,
   checked,
@@ -1944,4 +2050,38 @@ function formatPercent(value: number) {
 
 function interpolate(template: string, values: Record<string, string>) {
   return Object.entries(values).reduce((result, [key, value]) => result.replaceAll(`{${key}}`, value), template);
+}
+
+async function convertImageFileToDataUrl(file: File) {
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadImageElement(objectUrl);
+    const maxSize = 1200;
+    const ratio = Math.min(1, maxSize / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+    const width = Math.max(1, Math.round((image.naturalWidth || 1) * ratio));
+    const height = Math.max(1, Math.round((image.naturalHeight || 1) * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("canvas_context_missing");
+
+    context.drawImage(image, 0, 0, width, height);
+
+    const targetType = file.type === "image/png" || file.type === "image/webp" ? file.type : "image/jpeg";
+    return canvas.toDataURL(targetType, targetType === "image/jpeg" ? 0.88 : undefined);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("image_load_failed"));
+    image.src = src;
+  });
 }
