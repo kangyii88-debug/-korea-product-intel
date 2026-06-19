@@ -6,7 +6,6 @@ import {
   Database,
   FolderSync,
   PackageSearch,
-  Search,
   ShieldAlert,
   Sparkles,
   Target,
@@ -38,35 +37,12 @@ import {
 
 type SampleRow = Record<string, unknown>;
 
-type Filters = {
-  query: string;
-  reviews: "all" | "over_1000" | "over_3000" | "over_5000" | "over_10000";
-  category: string;
-  delivery: string;
-  seller: string;
-  status: "all" | CompetitorLibraryStatus;
-  risk: "all" | CompetitorLibraryLevel;
-  source: "all" | CompetitorLibraryItem["source_type"];
-  followUp: "all" | CompetitorLibraryLevel;
-};
-
 export function CompetitorLibraryWorkbench() {
   const { locale } = useLocale();
   const t = locale === "ko" ? KO_COPY : ZH_COPY;
   const [items, setItems] = useState<CompetitorLibraryItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({
-    query: "",
-    reviews: "all",
-    category: "all",
-    delivery: "all",
-    seller: "all",
-    status: "all",
-    risk: "all",
-    source: "all",
-    followUp: "all",
-  });
 
   useEffect(() => {
     const loaded = loadLocalCompetitorLibrary();
@@ -79,40 +55,7 @@ export function CompetitorLibraryWorkbench() {
     void seedLibrary();
   }, [items.length]);
 
-  const categories = useMemo(() => uniqueValues(items.map((item) => item.category)), [items]);
-  const deliveries = useMemo(() => uniqueValues(items.map((item) => item.delivery_type)), [items]);
-  const sellers = useMemo(() => uniqueValues(items.map((item) => item.seller_type)), [items]);
-
-  const filtered = useMemo(() => {
-    const keyword = filters.query.trim().toLowerCase();
-    return items.filter((item) => {
-      const text = [
-        item.product_name_ko,
-        item.product_name_zh,
-        item.brand,
-        item.category,
-        item.consumer_pain_points,
-        item.follow_up_recommendation,
-        item.recommended_destination,
-        item.risk_tags.join(" "),
-        item.improvement_opportunities.join(" "),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return (
-        (!keyword || text.includes(keyword)) &&
-        (filters.reviews === "all" || matchesReviewTier(item.review_count, filters.reviews)) &&
-        (filters.category === "all" || item.category === filters.category) &&
-        (filters.delivery === "all" || item.delivery_type === filters.delivery) &&
-        (filters.seller === "all" || item.seller_type === filters.seller) &&
-        (filters.status === "all" || item.status === filters.status) &&
-        (filters.risk === "all" || item.risk_level === filters.risk) &&
-        (filters.source === "all" || item.source_type === filters.source) &&
-        (filters.followUp === "all" || item.follow_up_value === filters.followUp)
-      );
-    });
-  }, [filters, items]);
+  const filtered = items;
 
   useEffect(() => {
     if (!filtered.length) {
@@ -278,30 +221,6 @@ export function CompetitorLibraryWorkbench() {
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_440px]">
           <div className="space-y-6">
-            <SectionCard title={t.filters.title} description={t.filters.description}>
-              <div className="flex flex-col gap-4">
-                <div className="relative max-w-xl">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={filters.query}
-                    onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
-                    placeholder={t.filters.search}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
-                  />
-                </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <SelectField label={t.filters.reviews} value={filters.reviews} onChange={(value) => setFilters((current) => ({ ...current, reviews: value as Filters["reviews"] }))} options={reviewOptions(t)} />
-                  <SelectField label={t.filters.category} value={filters.category} onChange={(value) => setFilters((current) => ({ ...current, category: value }))} options={buildOptions(categories, t.filters.all)} />
-                  <SelectField label={t.filters.delivery} value={filters.delivery} onChange={(value) => setFilters((current) => ({ ...current, delivery: value }))} options={buildOptions(deliveries, t.filters.all)} />
-                  <SelectField label={t.filters.seller} value={filters.seller} onChange={(value) => setFilters((current) => ({ ...current, seller: value }))} options={buildOptions(sellers, t.filters.all)} />
-                  <SelectField label={t.filters.status} value={filters.status} onChange={(value) => setFilters((current) => ({ ...current, status: value as Filters["status"] }))} options={statusOptions(t)} />
-                  <SelectField label={t.filters.risk} value={filters.risk} onChange={(value) => setFilters((current) => ({ ...current, risk: value as Filters["risk"] }))} options={levelOptions(t)} />
-                  <SelectField label={t.filters.source} value={filters.source} onChange={(value) => setFilters((current) => ({ ...current, source: value as Filters["source"] }))} options={sourceOptions(t)} />
-                  <SelectField label={t.filters.followUp} value={filters.followUp} onChange={(value) => setFilters((current) => ({ ...current, followUp: value as Filters["followUp"] }))} options={levelOptions(t)} />
-                </div>
-              </div>
-            </SectionCard>
-
             <SectionCard title={t.list.title} description={t.list.description}>
               <div className="space-y-3">
                 {filtered.map((item) => (
@@ -593,61 +512,6 @@ function splitValue(value: string | null | undefined) {
     .filter(Boolean);
 }
 
-function matchesReviewTier(reviewCount: number, tier: Filters["reviews"]) {
-  if (tier === "over_10000") return reviewCount >= 10000;
-  if (tier === "over_5000") return reviewCount >= 5000;
-  if (tier === "over_3000") return reviewCount >= 3000;
-  return reviewCount >= 1000;
-}
-
-function uniqueValues(values: string[]) {
-  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
-}
-
-function buildOptions(values: string[], allLabel: string) {
-  return [{ value: "all", label: allLabel }, ...values.map((value) => ({ value, label: value }))];
-}
-
-function reviewOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "over_1000", label: t.filters.review1000 },
-    { value: "over_3000", label: t.filters.review3000 },
-    { value: "over_5000", label: t.filters.review5000 },
-    { value: "over_10000", label: t.filters.review10000 },
-  ];
-}
-
-function statusOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "new", label: t.status.new },
-    { value: "watch", label: t.status.watch },
-    { value: "analyze", label: t.status.analyze },
-    { value: "transfer", label: t.status.transfer },
-    { value: "ignore", label: t.status.ignore },
-  ];
-}
-
-function levelOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "low", label: t.levels.low },
-    { value: "medium", label: t.levels.medium },
-    { value: "high", label: t.levels.high },
-  ];
-}
-
-function sourceOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "hot_products", label: t.sources.hot_products },
-    { value: "testing_db", label: t.sources.testing_db },
-    { value: "opportunity_board", label: t.sources.opportunity_board },
-    { value: "manual", label: t.sources.manual },
-  ];
-}
-
 function sourceLabel(source: CompetitorLibraryItem["source_type"], t: typeof ZH_COPY) {
   return t.sources[source];
 }
@@ -664,35 +528,6 @@ function toneForLevel(level: CompetitorLibraryLevel) {
   if (level === "high") return "danger" as const;
   if (level === "medium") return "warning" as const;
   return "success" as const;
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <label className="text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 }
 
 function Metric({ label, value, selected }: { label: string; value: string; selected: boolean }) {

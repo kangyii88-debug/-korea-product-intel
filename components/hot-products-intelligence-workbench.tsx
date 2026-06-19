@@ -48,6 +48,7 @@ export function HotProductsIntelligenceWorkbench() {
   const [items, setItems] = useState<HotProductIntelligenceItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const loaded = loadLocalHotProductIntelligence();
@@ -61,6 +62,16 @@ export function HotProductsIntelligenceWorkbench() {
   }, [items.length]);
 
   const filtered = items;
+  const pageSize = 6;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -302,11 +313,12 @@ export function HotProductsIntelligenceWorkbench() {
           ))}
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_440px]">
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_440px] xl:items-start">
           <div className="space-y-6">
-            <SectionCard title={t.list.title} description={t.list.description}>
-              <div className="space-y-3">
-                {filtered.map((item) => (
+            <SectionCard title={t.list.title} description={t.list.description} className="h-full">
+              <div className="flex h-full flex-col">
+                <div className="space-y-3">
+                  {pagedItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -332,13 +344,35 @@ export function HotProductsIntelligenceWorkbench() {
                     <Metric label={t.list.reviews} value={`${item.review_count}`} selected={item.id === selectedId} />
                     <Metric label={t.list.destination} value={item.recommended_destination || "-"} selected={item.id === selectedId} />
                   </button>
-                ))}
-                {!filtered.length ? <EmptyPanel message={t.list.empty} /> : null}
+                  ))}
+                  {!filtered.length ? <EmptyPanel message={t.list.empty} /> : null}
+                </div>
+                {filtered.length > 0 ? (
+                  <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-slate-500">
+                      {locale === "ko"
+                        ? `${page} / ${totalPages} 페이지`
+                        : `第 ${page} / ${totalPages} 页`}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                        {locale === "ko" ? "이전 페이지" : "上一页"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={page >= totalPages}
+                        onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                      >
+                        {locale === "ko" ? "다음 페이지" : "下一页"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </SectionCard>
           </div>
 
-          <Card className="h-fit overflow-hidden">
+          <Card className="sticky top-6 overflow-hidden">
             <CardHeader className="space-y-4">
               {selected ? (
                 <>
