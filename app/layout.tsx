@@ -6,8 +6,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Korea E-commerce AI Product Intelligence System",
-  description: "AI product intelligence for Korean e-commerce product discovery and development.",
+  title: "Sourcing Intelligence Cloud",
+  description: "Independent AI sourcing intelligence workspace for Korean e-commerce product discovery and development.",
 };
 
 export default function RootLayout({

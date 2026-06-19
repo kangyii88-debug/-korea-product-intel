@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { BusinessAIModule } from "@/components/business-ai-module";
+import { ReviewIntelligenceWorkbench } from "@/components/review-intelligence-workbench";
 
 export default function ReviewsPage() {
   return (
     <AppShell>
-      <BusinessAIModule kind="reviews" taskType="review_analysis" />
+      <ReviewIntelligenceWorkbench />
     </AppShell>
   );
 }

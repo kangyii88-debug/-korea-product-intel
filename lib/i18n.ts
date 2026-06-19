@@ -22,8 +22,8 @@ export const dictionaries = {
       all: "全部",
     },
     nav: {
-      title: "Coupang 商品情报系统",
-      subtitle: "Coupang 商品情报与 B2B 项目筛选系统",
+      title: "选品情报云",
+      subtitle: "独立运营的韩国电商选品与情报工作台",
       groups: {
         intelligence: "INTELLIGENCE",
         workspace: "WORKSPACE",
@@ -198,13 +198,13 @@ export const dictionaries = {
       },
       login: {
         title: "登录",
-        subtitle: "韩国电商 AI 商品情报系统",
-        heroTitle: "把商品机会、分析判断与执行动作整合到一个系统里",
+        subtitle: "韩国电商选品情报云",
+        heroTitle: "把商品机会、分析判断与执行动作整合到独立运营的情报系统里",
         heroDescription: "围绕真实商品机会建立评分、利润、风险和项目分流流程，让系统承担经营判断，而不是只做记录。",
-        accessTitle: "Web SaaS Access",
-        accessDescription: "登录后进入 Coupang 商品情报与 B2B 项目筛选系统，开始录入和分析真实商品机会。",
+        accessTitle: "Independent Cloud Access",
+        accessDescription: "登录后进入选品情报云，开始录入、分析与分流真实商品机会。",
         noSupabase: "当前未检测到完整的 Supabase 公共配置，你仍然可以进入受控演示登录流程。",
-        protected: "Protected cloud workspace for product intelligence.",
+        protected: "Independent cloud workspace for sourcing intelligence.",
         features: [
           { title: "机会评分", text: "将真实商品机会、方向判断、风险状态与下一步动作集中管理。" },
           { title: "AI 分析", text: "统一处理竞品、评论、利润与开发建议，支持后续接入多种 AI 能力。" },
@@ -393,8 +393,8 @@ export const dictionaries = {
       all: "전체",
     },
     nav: {
-      title: "Coupang 상품 인텔리전스",
-      subtitle: "Coupang 상품 인텔리전스 및 B2B 프로젝트 선별 시스템",
+      title: "소싱 인텔리전스 클라우드",
+      subtitle: "독립 운영형 한국 이커머스 소싱·인텔리전스 워크스페이스",
       groups: {
         intelligence: "INTELLIGENCE",
         workspace: "WORKSPACE",
@@ -569,13 +569,13 @@ export const dictionaries = {
       },
       login: {
         title: "로그인",
-        subtitle: "한국 전자상거래 AI 상품 인텔리전스 시스템",
-        heroTitle: "상품 기회, 분석 판단, 실행 액션을 하나의 시스템으로 정리합니다",
+        subtitle: "한국 이커머스 소싱 인텔리전스 클라우드",
+        heroTitle: "상품 기회, 분석 판단, 실행 액션을 독립 운영형 인텔리전스 시스템으로 정리합니다",
         heroDescription: "실제 상품 기회를 기준으로 점수, 수익성, 리스크와 프로젝트 분류 흐름을 만들고 시스템이 운영 판단을 돕도록 설계했습니다.",
-        accessTitle: "Web SaaS Access",
-        accessDescription: "로그인 후 Coupang 상품 인텔리전스 및 B2B 프로젝트 선별 시스템에 들어가 실제 상품 기회를 등록하고 분석할 수 있습니다.",
+        accessTitle: "Independent Cloud Access",
+        accessDescription: "로그인 후 소싱 인텔리전스 클라우드에 들어가 실제 상품 기회를 등록하고 분석할 수 있습니다.",
         noSupabase: "현재 완전한 Supabase 공개 설정이 감지되지 않았습니다. 그래도 제어된 데모 로그인 흐름으로 계속할 수 있습니다.",
-        protected: "Protected cloud workspace for product intelligence.",
+        protected: "Independent cloud workspace for sourcing intelligence.",
         features: [
           { title: "기회 점수화", text: "실제 상품 기회, 방향 판단, 리스크 상태와 다음 액션을 한 화면에서 관리합니다." },
           { title: "AI 분석", text: "경쟁 상품, 리뷰, 수익성, 개발 제안을 한 흐름으로 정리하고 여러 AI 능력 연결을 준비합니다." },

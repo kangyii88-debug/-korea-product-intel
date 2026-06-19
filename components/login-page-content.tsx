@@ -26,7 +26,7 @@ export function LoginPageContent({
               <Boxes className="h-5 w-5 text-slate-900" />
             </div>
             <div>
-              <p className="text-base font-semibold tracking-tight text-slate-950">Korea Product Intel</p>
+              <p className="text-base font-semibold tracking-tight text-slate-950">Sourcing Intelligence Cloud</p>
               <p className="text-sm text-slate-500">{t.pages.login.subtitle}</p>
             </div>
           </div>
@@ -59,7 +59,7 @@ export function LoginPageContent({
               <Boxes className="h-5 w-5 text-slate-900" />
             </div>
             <div>
-              <p className="text-base font-semibold tracking-tight text-slate-950">Korea Product Intel</p>
+              <p className="text-base font-semibold tracking-tight text-slate-950">Sourcing Intelligence Cloud</p>
               <p className="text-sm text-slate-500">{t.pages.login.subtitle}</p>
             </div>
           </div>
