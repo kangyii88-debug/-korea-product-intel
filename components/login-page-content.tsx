@@ -16,6 +16,8 @@ export function LoginPageContent({
   const { locale } = useLocale();
   const t = getDictionary(locale);
   const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+  const brandName = locale === "ko" ? "선정정보 클라우드" : "选品情报云";
+  const accessTitle = locale === "ko" ? "독立 운영 전용 진입" : "独立运营专用入口";
 
   return (
     <main className="min-h-screen bg-white text-foreground">
@@ -26,7 +28,7 @@ export function LoginPageContent({
               <Boxes className="h-5 w-5 text-slate-900" />
             </div>
             <div>
-              <p className="text-base font-semibold tracking-tight text-slate-950">Sourcing Intelligence Cloud</p>
+              <p className="text-base font-semibold tracking-tight text-slate-950">{brandName}</p>
               <p className="text-sm text-slate-500">{t.pages.login.subtitle}</p>
             </div>
           </div>
@@ -59,14 +61,14 @@ export function LoginPageContent({
               <Boxes className="h-5 w-5 text-slate-900" />
             </div>
             <div>
-              <p className="text-base font-semibold tracking-tight text-slate-950">Sourcing Intelligence Cloud</p>
+              <p className="text-base font-semibold tracking-tight text-slate-950">{brandName}</p>
               <p className="text-sm text-slate-500">{t.pages.login.subtitle}</p>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-7 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
             <div className="mb-7">
-              <p className="text-sm font-medium text-emerald-700">{t.pages.login.accessTitle}</p>
+              <p className="text-sm font-medium text-emerald-700">{accessTitle}</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{t.pages.login.title}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">{t.pages.login.accessDescription}</p>
             </div>
@@ -82,7 +84,7 @@ export function LoginPageContent({
             </Suspense>
           </div>
 
-          <p className="mt-5 text-center text-xs text-slate-400">{t.pages.login.protected}</p>
+          <p className="mt-5 text-center text-xs text-slate-400">{brandName}</p>
         </section>
       </div>
     </main>

@@ -8,7 +8,6 @@ import {
   FolderSync,
   PackagePlus,
   PackageSearch,
-  Search,
   ShieldAlert,
   Sparkles,
   Target,
@@ -43,35 +42,12 @@ import { createLocalProductOpportunity } from "@/lib/product-opportunities-local
 
 type SampleRow = Record<string, unknown>;
 
-type Filters = {
-  query: string;
-  purchase: "all" | MonthlyPurchaseLevel;
-  category: string;
-  delivery: string;
-  seller: string;
-  action: "all" | HotActionStatus;
-  risk: "all" | HotRiskLevel;
-  seasonality: "all" | HotProductIntelligenceItem["seasonality_status"];
-  source: "all" | HotProductIntelligenceItem["source_type"];
-};
-
 export function HotProductsIntelligenceWorkbench() {
   const { locale } = useLocale();
   const t = locale === "ko" ? KO_COPY : ZH_COPY;
   const [items, setItems] = useState<HotProductIntelligenceItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({
-    query: "",
-    purchase: "all",
-    category: "all",
-    delivery: "all",
-    seller: "all",
-    action: "all",
-    risk: "all",
-    seasonality: "all",
-    source: "all",
-  });
 
   useEffect(() => {
     const loaded = loadLocalHotProductIntelligence();
@@ -84,37 +60,7 @@ export function HotProductsIntelligenceWorkbench() {
     void seed();
   }, [items.length]);
 
-  const filtered = useMemo(() => {
-    const keyword = filters.query.trim().toLowerCase();
-    return items.filter((item) => {
-      const text = [
-        item.product_name_ko,
-        item.product_name_zh,
-        item.brand,
-        item.category,
-        item.recommendation_type,
-        item.recommended_destination,
-        item.next_action,
-        item.consumer_pain_points,
-        item.market_analysis,
-        item.risk_tags.join(" "),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return (
-        (!keyword || text.includes(keyword)) &&
-        (filters.purchase === "all" || item.monthly_purchase_level === filters.purchase) &&
-        (filters.category === "all" || item.category === filters.category) &&
-        (filters.delivery === "all" || item.delivery_type === filters.delivery) &&
-        (filters.seller === "all" || item.seller_type === filters.seller) &&
-        (filters.action === "all" || item.action_status === filters.action) &&
-        (filters.risk === "all" || item.risk_level === filters.risk) &&
-        (filters.seasonality === "all" || item.seasonality_status === filters.seasonality) &&
-        (filters.source === "all" || item.source_type === filters.source)
-      );
-    });
-  }, [filters, items]);
+  const filtered = items;
 
   useEffect(() => {
     if (!filtered.length) {
@@ -127,10 +73,6 @@ export function HotProductsIntelligenceWorkbench() {
   }, [filtered, selectedId]);
 
   const selected = filtered.find((item) => item.id === selectedId) ?? items.find((item) => item.id === selectedId) ?? null;
-  const categories = useMemo(() => uniqueValues(items.map((item) => item.category)), [items]);
-  const deliveries = useMemo(() => uniqueValues(items.map((item) => item.delivery_type)), [items]);
-  const sellers = useMemo(() => uniqueValues(items.map((item) => item.seller_type)), [items]);
-
   const metrics = useMemo(() => {
     return [
       {
@@ -362,30 +304,6 @@ export function HotProductsIntelligenceWorkbench() {
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_440px]">
           <div className="space-y-6">
-            <SectionCard title={t.filters.title} description={t.filters.description}>
-              <div className="flex flex-col gap-4">
-                <div className="relative max-w-xl">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={filters.query}
-                    onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
-                    placeholder={t.filters.search}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
-                  />
-                </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <SelectField label={t.filters.purchase} value={filters.purchase} onChange={(value) => setFilters((current) => ({ ...current, purchase: value as Filters["purchase"] }))} options={purchaseOptions(t)} />
-                  <SelectField label={t.filters.category} value={filters.category} onChange={(value) => setFilters((current) => ({ ...current, category: value }))} options={buildOptions(categories, t.filters.all)} />
-                  <SelectField label={t.filters.delivery} value={filters.delivery} onChange={(value) => setFilters((current) => ({ ...current, delivery: value }))} options={buildOptions(deliveries, t.filters.all)} />
-                  <SelectField label={t.filters.seller} value={filters.seller} onChange={(value) => setFilters((current) => ({ ...current, seller: value }))} options={buildOptions(sellers, t.filters.all)} />
-                  <SelectField label={t.filters.action} value={filters.action} onChange={(value) => setFilters((current) => ({ ...current, action: value as Filters["action"] }))} options={actionOptions(t)} />
-                  <SelectField label={t.filters.risk} value={filters.risk} onChange={(value) => setFilters((current) => ({ ...current, risk: value as Filters["risk"] }))} options={riskOptions(t)} />
-                  <SelectField label={t.filters.seasonality} value={filters.seasonality} onChange={(value) => setFilters((current) => ({ ...current, seasonality: value as Filters["seasonality"] }))} options={seasonalityOptions(t)} />
-                  <SelectField label={t.filters.source} value={filters.source} onChange={(value) => setFilters((current) => ({ ...current, source: value as Filters["source"] }))} options={sourceOptions(t)} />
-                </div>
-              </div>
-            </SectionCard>
-
             <SectionCard title={t.list.title} description={t.list.description}>
               <div className="space-y-3">
                 {filtered.map((item) => (
@@ -429,7 +347,7 @@ export function HotProductsIntelligenceWorkbench() {
                     <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-slate-950">
                       {locale === "ko" ? selected.product_name_ko : selected.product_name_zh || selected.product_name_ko}
                     </h3>
-                    <p className="mt-2 text-sm text-slate-500">{selected.competitor_price_krw} KRW · {selected.review_count} reviews</p>
+                    <p className="mt-2 text-sm text-slate-500">{locale === "ko" ? `${selected.competitor_price_krw}원 · 리뷰 ${selected.review_count}개` : `${selected.competitor_price_krw}韩元 · 评论 ${selected.review_count}条`}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <MiniStat label={t.detail.monthly} value={purchaseLabel(selected.monthly_purchase_level, t)} />
@@ -558,65 +476,6 @@ function inferBusinessType(value: string) {
   return "general";
 }
 
-function uniqueValues(values: string[]) {
-  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
-}
-
-function buildOptions(values: string[], allLabel: string) {
-  return [{ value: "all", label: allLabel }, ...values.map((value) => ({ value, label: value }))];
-}
-
-function purchaseOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "under_1000", label: t.purchase.under_1000 },
-    { value: "over_1000", label: t.purchase.over_1000 },
-    { value: "over_3000", label: t.purchase.over_3000 },
-    { value: "over_5000", label: t.purchase.over_5000 },
-    { value: "over_10000", label: t.purchase.over_10000 },
-    { value: "unknown", label: t.purchase.unknown },
-  ];
-}
-
-function actionOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "pending", label: t.actions.pending },
-    { value: "recommended", label: t.actions.recommended },
-    { value: "transferred_competitor", label: t.actions.transferred_competitor },
-    { value: "transferred_testing", label: t.actions.transferred_testing },
-    { value: "transferred_opportunity", label: t.actions.transferred_opportunity },
-    { value: "ignored", label: t.actions.ignored },
-  ];
-}
-
-function riskOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "low", label: t.levels.low },
-    { value: "medium", label: t.levels.medium },
-    { value: "high", label: t.levels.high },
-  ];
-}
-
-function seasonalityOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "evergreen", label: t.seasonality.evergreen },
-    { value: "seasonal", label: t.seasonality.seasonal },
-    { value: "uncertain", label: t.seasonality.uncertain },
-  ];
-}
-
-function sourceOptions(t: typeof ZH_COPY) {
-  return [
-    { value: "all", label: t.filters.all },
-    { value: "sample_bundle", label: t.sources.sample_bundle },
-    { value: "codex_import", label: t.sources.codex_import },
-    { value: "manual", label: t.sources.manual },
-  ];
-}
-
 function purchaseLabel(level: MonthlyPurchaseLevel, t: typeof ZH_COPY) {
   return t.purchase[level];
 }
@@ -633,35 +492,6 @@ function toneForRisk(level: HotRiskLevel) {
   if (level === "high") return "danger" as const;
   if (level === "medium") return "warning" as const;
   return "success" as const;
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <label className="text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-slate-900/10"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 }
 
 function Metric({ label, value, selected }: { label: string; value: string; selected: boolean }) {
@@ -697,7 +527,7 @@ function EmptyPanel({ message }: { message: string }) {
 
 const ZH_COPY = {
   header: {
-    eyebrow: "HOT PRODUCT INTELLIGENCE",
+    eyebrow: "热销情报中心",
     title: "Coupang 热销情报中心",
     description: "围绕 Coupang 热销样本做长期运营判断，不再只看一眼爆款，而是持续管理热度、风险、去向和后续动作。",
   },
@@ -754,7 +584,7 @@ const ZH_COPY = {
     empty: "当前没有符合筛选条件的热销样本。",
   },
   detail: {
-    eyebrow: "Hot Product Detail",
+    eyebrow: "베스트셀러 샘플 상세",
     monthly: "月购层级",
     risk: "风险等级",
     competition: "竞争强度",
@@ -821,9 +651,9 @@ const ZH_COPY = {
 
 const KO_COPY: typeof ZH_COPY = {
   header: {
-    eyebrow: "HOT PRODUCT INTELLIGENCE",
-    title: "Coupang 히트상품 인텔리전스 센터",
-    description: "Coupang 히트상품 샘플을 장기 운영 관점에서 관리하고, 열도·리스크·다음 경로를 한 화면에서 판단합니다.",
+    eyebrow: "베스트셀러 인텔리전스",
+    title: "Coupang 베스트셀러 정보판",
+    description: "베스트셀러 샘플, 경쟁 강도, 리스크 태그와 후속 액션을 한 화면에서 보며 어떤 상품을 더 밀고 어떤 상품을 보류할지 빠르게 판단합니다.",
   },
   hero: {
     badge: "장기 운영형 히트상품 워크벤치",
@@ -831,7 +661,7 @@ const KO_COPY: typeof ZH_COPY = {
     description: "이 화면은 단순 폭발상품 모음이 아니라, 히트상품을 계속 추적할 수 있는 인텔리전스 자산으로 관리하는 곳입니다.",
     refresh: "히트상품 샘플 다시 불러오기",
     cards: [
-      { title: "열도 확인", note: "월구매 배지와 리뷰 규모를 먼저 봅니다." },
+      { title: "열기 확인", note: "월구매 배지와 리뷰 규모를 먼저 봅니다." },
       { title: "리스크 확인", note: "KC, 반품, 물류, 카테고리 제한을 먼저 드러냅니다." },
       { title: "경로 결정", note: "모든 샘플이 바로 기회보드로 가는 것은 아닙니다." },
       { title: "액션 연결", note: "각 샘플은 결국 동기화, 추적, 무시 중 하나로 정리됩니다." },
@@ -878,7 +708,7 @@ const KO_COPY: typeof ZH_COPY = {
     empty: "필터 조건에 맞는 히트상품 샘플이 없습니다.",
   },
   detail: {
-    eyebrow: "Hot Product Detail",
+    eyebrow: "热销样本详情",
     monthly: "월구매 레벨",
     risk: "리스크 레벨",
     competition: "경쟁 강도",

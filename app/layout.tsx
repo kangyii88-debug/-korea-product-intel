@@ -6,8 +6,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Sourcing Intelligence Cloud",
-  description: "Independent AI sourcing intelligence workspace for Korean e-commerce product discovery and development.",
+  title: "选品情报云",
+  description: "韩国电商选品与运营情报工作台",
 };
 
 export default function RootLayout({

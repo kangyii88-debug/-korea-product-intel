@@ -35,10 +35,24 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { locale } = useLocale();
   const t = getDictionary(locale);
+  const shellCopy =
+    locale === "ko"
+      ? {
+          title: "선정정보 클라우드",
+          subtitle: "장기 운영형 한국 전자상거래 상품 정보 작업대",
+          intelligence: "정보 영역",
+          workspace: "작업 영역",
+        }
+      : {
+          title: "选品情报云",
+          subtitle: "独立运营的韩国电商选品与情报工作台",
+          intelligence: "情报模块",
+          workspace: "工作区",
+        };
 
   const groups: Array<{ label: string; items: NavItem[] }> = [
     {
-      label: t.nav.groups.intelligence,
+      label: shellCopy.intelligence,
       items: [
         { href: "/", label: t.nav.items.dashboard, icon: TrendingUp },
         { href: "/opportunities", label: t.nav.items.opportunities, icon: PackageSearch },
@@ -46,7 +60,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      label: t.nav.groups.workspace,
+      label: shellCopy.workspace,
       items: [
         { href: "/reviews", label: t.nav.items.reviews, icon: BrainCircuit },
         { href: "/pricing-profit", label: t.nav.items.pricing, icon: ClipboardCheck },
@@ -70,8 +84,8 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         <div className="px-4 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{t.nav.title}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">{t.nav.subtitle}</p>
+              <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{shellCopy.title}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{shellCopy.subtitle}</p>
             </div>
             <LanguageToggle />
           </div>
@@ -104,8 +118,8 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
                   <Boxes className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{t.nav.title}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{t.nav.subtitle}</p>
+                  <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{shellCopy.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{shellCopy.subtitle}</p>
                 </div>
               </div>
               <div className="flex justify-end">

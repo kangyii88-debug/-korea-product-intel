@@ -110,7 +110,9 @@ export function ReviewIntelligenceWorkbench() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setItems(loadLocalReviewInsights());
+    const restored = loadLocalReviewInsights().map(refreshInsightNarrative);
+    setItems(restored);
+    replaceLocalReviewInsights(restored);
   }, []);
 
   const metrics = useMemo(() => buildMetrics(items, t), [items, t]);
@@ -584,6 +586,13 @@ function buildMetrics(items: ReviewInsightRecord[], t: typeof ZH_COPY) {
 }
 
 function buildInsightFromLocalProduct(product: LocalProduct): ReviewInsightRecord {
+  const insightAnalysis = analyzeReviewText([
+    product.reviewSummary,
+    product.consumerPainPoints,
+    product.productDevelopmentDirection,
+    product.recommendationReason,
+    ...product.reviews,
+  ]);
   const issueCategories = deriveIssueCategories(`${product.reviewSummary}\n${product.consumerPainPoints}\n${product.reviews.join("\n")}`);
   const topPainPoints = issueCategories.slice(0, 3);
   const severity = issueCategories.length >= 4 ? "high" : issueCategories.length >= 2 ? "medium" : "low";
@@ -608,28 +617,48 @@ function buildInsightFromLocalProduct(product: LocalProduct): ReviewInsightRecor
     delivery_type: product.deliveryType,
     review_samples: product.reviews.slice(0, 8),
     bad_review_samples: product.reviews.slice(0, 8),
-    negative_keywords: issueCategories,
-    pain_point_categories: issueCategories,
-    top_pain_points: topPainPoints,
-    severity_level: severity,
-    frequency_level: frequency,
-    return_risk_level: returnRisk,
+    negative_keywords: insightAnalysis.negativeKeywords,
+    pain_point_categories: insightAnalysis.categories,
+    top_pain_points: insightAnalysis.topPainPoints,
+    severity_level: insightAnalysis.severity,
+    frequency_level: insightAnalysis.frequency,
+    return_risk_level: insightAnalysis.returnRisk,
     rating_impact_level: product.rating <= 3.8 ? "high" : product.rating <= 4.3 ? "medium" : "low",
-    improvement_possible: improvementPossible,
-    improvement_suggestions: buildSuggestionsFromCategories(issueCategories),
+    improvement_possible: insightAnalysis.improvementPossible,
+    improvement_suggestions: buildPracticalSuggestionsFromCategories(insightAnalysis.categories),
     development_direction: product.productDevelopmentDirection || product.sampleDevelopmentAdvice,
-    final_recommendation: buildRecommendation(severity, improvementPossible, issueCategories),
-    next_action: buildNextAction(severity, improvementPossible, issueCategories),
-    sync_to_product_test: severity !== "low",
-    sync_to_opportunity_board: severity !== "high" && improvementPossible,
+    final_recommendation: buildRecommendationFromAnalysis(
+      insightAnalysis.severity,
+      insightAnalysis.improvementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
+    next_action: buildNextActionFromAnalysis(
+      insightAnalysis.severity,
+      insightAnalysis.improvementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
+    sync_to_product_test: insightAnalysis.severity !== "low",
+    sync_to_opportunity_board: insightAnalysis.severity !== "high" && insightAnalysis.improvementPossible,
     notes: [product.reviewSummary, product.consumerPainPoints].filter(Boolean).join(" / "),
-    status: severity === "high" ? "sync_testing_db" : improvementPossible ? "sync_opportunity" : "observe",
+    status:
+      insightAnalysis.severity === "high"
+        ? "sync_testing_db"
+        : insightAnalysis.improvementPossible
+          ? "sync_opportunity"
+          : "observe",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 }
 
 function buildInsightFromOpportunity(item: ReturnType<typeof loadLocalProductOpportunities>[number]): ReviewInsightRecord {
+  const insightAnalysis = analyzeReviewText([
+    item.review_issue_summary ?? "",
+    item.negative_review_keywords ?? "",
+    item.improvement_points ?? "",
+  ]);
   const issueCategories = deriveIssueCategories(`${item.review_issue_summary ?? ""}\n${item.negative_review_keywords ?? ""}\n${item.improvement_points ?? ""}`);
   const severity = item.negative_review_risk === "high" ? "high" : item.negative_review_risk === "medium" ? "medium" : issueCategories.length >= 3 ? "medium" : "low";
   const improvementPossible = Boolean(item.improvement_points);
@@ -651,22 +680,32 @@ function buildInsightFromOpportunity(item: ReturnType<typeof loadLocalProductOpp
     delivery_type: "",
     review_samples: item.negative_review_keywords ? [item.negative_review_keywords] : [],
     bad_review_samples: item.review_issue_summary ? [item.review_issue_summary] : [],
-    negative_keywords: issueCategories,
-    pain_point_categories: issueCategories,
-    top_pain_points: issueCategories.slice(0, 3),
+    negative_keywords: insightAnalysis.negativeKeywords,
+    pain_point_categories: insightAnalysis.categories,
+    top_pain_points: insightAnalysis.topPainPoints,
     severity_level: severity,
-    frequency_level: Number(item.review_count ?? 0) >= 1000 ? "high" : Number(item.review_count ?? 0) >= 200 ? "medium" : "low",
-    return_risk_level: item.return_risk ?? "low",
+    frequency_level: Number(item.review_count ?? 0) >= 1000 ? "high" : Number(item.review_count ?? 0) >= 200 ? "medium" : insightAnalysis.frequency,
+    return_risk_level: item.return_risk ?? insightAnalysis.returnRisk,
     rating_impact_level: Number(item.rating ?? 0) <= 3.8 ? "high" : Number(item.rating ?? 0) <= 4.3 ? "medium" : "low",
-    improvement_possible: improvementPossible,
-    improvement_suggestions: item.improvement_points ? [item.improvement_points] : buildSuggestionsFromCategories(issueCategories),
+    improvement_possible: improvementPossible || insightAnalysis.improvementPossible,
+    improvement_suggestions: item.improvement_points ? [item.improvement_points] : buildPracticalSuggestionsFromCategories(insightAnalysis.categories),
     development_direction: item.improvement_points ?? "",
-    final_recommendation: buildRecommendation(severity, improvementPossible, issueCategories),
-    next_action: buildNextAction(severity, improvementPossible, issueCategories),
+    final_recommendation: buildRecommendationFromAnalysis(
+      severity,
+      improvementPossible || insightAnalysis.improvementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
+    next_action: buildNextActionFromAnalysis(
+      severity,
+      improvementPossible || insightAnalysis.improvementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
     sync_to_product_test: true,
-    sync_to_opportunity_board: improvementPossible,
+    sync_to_opportunity_board: improvementPossible || insightAnalysis.improvementPossible,
     notes: [item.review_issue_summary, item.improvement_points].filter(Boolean).join(" / "),
-    status: improvementPossible ? "sync_opportunity" : "observe",
+    status: improvementPossible || insightAnalysis.improvementPossible ? "sync_opportunity" : "observe",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -694,6 +733,12 @@ function buildInsightFromCorpus(
     | "bad_review_samples"
   >,
 ): ReviewInsightRecord {
+  const insightAnalysis = analyzeReviewText([
+    ...corpus.issues.map((issue) => issue.label),
+    ...corpus.keywords.map((item) => item.keyword),
+    ...corpus.issues.flatMap((issue) => issue.evidence ?? []),
+    ...corpus.issues.flatMap((issue) => issue.optimizationSuggestions ?? []),
+  ]);
   const issueCategories = corpus.issues.map((issue) => normalizeIssueLabel(issue.label));
   const topPainPoints = corpus.issues.slice(0, 3).map((issue) => normalizeIssueLabel(issue.label));
   const negativeReviews = corpus.sentiments.filter((item) => item.sentiment === "negative").length;
@@ -705,21 +750,37 @@ function buildInsightFromCorpus(
 
   return {
     ...base,
-    negative_keywords: corpus.keywords.filter((item) => item.sentiment === "negative").map((item) => item.keyword).slice(0, 12),
-    pain_point_categories: issueCategories,
-    top_pain_points: topPainPoints,
+    negative_keywords:
+      corpus.keywords.filter((item) => item.sentiment === "negative").map((item) => item.keyword).slice(0, 12).length > 0
+        ? corpus.keywords.filter((item) => item.sentiment === "negative").map((item) => item.keyword).slice(0, 12)
+        : insightAnalysis.negativeKeywords,
+    pain_point_categories: insightAnalysis.categories,
+    top_pain_points: insightAnalysis.topPainPoints,
     severity_level: severity,
     frequency_level: frequency,
     return_risk_level: returnRisk,
     rating_impact_level: base.rating <= 3.8 || negativeReviews >= 5 ? "high" : negativeReviews >= 2 ? "medium" : "low",
     improvement_possible: improvementPossible,
-    improvement_suggestions: improvementSuggestions,
+    improvement_suggestions:
+      improvementSuggestions.length > 0
+        ? improvementSuggestions
+        : buildPracticalSuggestionsFromCategories(insightAnalysis.categories),
     development_direction: improvementSuggestions[0] ?? "",
-    final_recommendation: buildRecommendation(severity, improvementPossible, issueCategories),
-    next_action: buildNextAction(severity, improvementPossible, issueCategories),
+    final_recommendation: buildRecommendationFromAnalysis(
+      severity,
+      improvementPossible || insightAnalysis.improvementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
+    next_action: buildNextActionFromAnalysis(
+      severity,
+      improvementPossible || insightAnalysis.improvementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
     sync_to_product_test: true,
     sync_to_opportunity_board: improvementPossible && severity !== "high",
-    notes: topPainPoints.join(" / "),
+    notes: insightAnalysis.topPainPoints.join(" / "),
     status: improvementPossible ? "ready" : "observe",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -750,6 +811,220 @@ function mergeInsightItems(current: ReviewInsightRecord[], incoming: ReviewInsig
   }
 
   return next;
+}
+
+function refreshInsightNarrative(item: ReviewInsightRecord): ReviewInsightRecord {
+  const insightAnalysis = analyzeReviewText([
+    item.notes,
+    item.development_direction,
+    ...item.review_samples,
+    ...item.bad_review_samples,
+    ...item.negative_keywords,
+    ...item.pain_point_categories,
+  ]);
+
+  const nextSeverity = item.severity_level === "high" ? "high" : insightAnalysis.severity;
+  const nextFrequency = item.frequency_level === "high" ? "high" : insightAnalysis.frequency;
+  const nextReturnRisk = item.return_risk_level === "high" ? "high" : insightAnalysis.returnRisk;
+  const nextImprovementPossible = item.improvement_possible || insightAnalysis.improvementPossible;
+
+  return {
+    ...item,
+    negative_keywords: insightAnalysis.negativeKeywords,
+    pain_point_categories: insightAnalysis.categories,
+    top_pain_points: insightAnalysis.topPainPoints,
+    severity_level: nextSeverity,
+    frequency_level: nextFrequency,
+    return_risk_level: nextReturnRisk,
+    improvement_possible: nextImprovementPossible,
+    improvement_suggestions:
+      insightAnalysis.categories.length > 0
+        ? buildPracticalSuggestionsFromCategories(insightAnalysis.categories)
+        : item.improvement_suggestions,
+    final_recommendation: buildRecommendationFromAnalysis(
+      nextSeverity,
+      nextImprovementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
+    next_action: buildNextActionFromAnalysis(
+      nextSeverity,
+      nextImprovementPossible,
+      insightAnalysis.topPainPoints,
+      insightAnalysis.categories,
+    ),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function analyzeReviewText(parts: Array<string | null | undefined>): {
+  categories: string[];
+  topPainPoints: string[];
+  negativeKeywords: string[];
+  severity: "low" | "medium" | "high";
+  frequency: "low" | "medium" | "high";
+  returnRisk: "low" | "medium" | "high";
+  improvementPossible: boolean;
+} {
+  const text = parts.filter(Boolean).join("\n");
+  const matches = summarizeIssueMatches(text);
+  const categories = matches.map((item) => item.label);
+  const topPainPoints = matches
+    .slice(0, 3)
+    .map((item) => (item.evidence ? `${item.label}：${item.evidence}` : item.label));
+  const negativeKeywords = extractNegativeKeywords(text, matches);
+  const severity: "low" | "medium" | "high" =
+    matches.some((item) => item.label === "退货风险" || item.count >= 4) || /退货|退款|换货|return|반품|교환/i.test(text)
+      ? "high"
+      : matches.length >= 2
+        ? "medium"
+        : "low";
+  const frequency: "low" | "medium" | "high" =
+    matches.some((item) => item.count >= 3) || text.split(/\r?\n/).filter((line) => line.trim().length > 0).length >= 8
+      ? "high"
+      : matches.length >= 2
+        ? "medium"
+        : "low";
+  const returnRisk: "low" | "medium" | "high" =
+    /退货|退款|换货|return|반품|교환/i.test(text)
+      ? "high"
+      : categories.some((item) => ["尺寸问题", "质量问题", "安装问题", "图文不符"].includes(item))
+        ? "medium"
+        : "low";
+  const improvementPossible = matches.some((item) => item.label !== "价格问题");
+
+  return {
+    categories,
+    topPainPoints,
+    negativeKeywords,
+    severity,
+    frequency,
+    returnRisk,
+    improvementPossible,
+  };
+}
+
+function summarizeIssueMatches(text: string) {
+  const rules = [
+    { label: "尺寸问题", regex: /尺寸|偏小|偏大|太小|太大|size|작아요|커요|길이|宽度|高度|不合适/i },
+    { label: "材质问题", regex: /材质|面料|薄|厚|质感|material|소재|재질|냄새|手感/i },
+    { label: "安装问题", regex: /安装|不好装|配件|说明书|install|조립|설치|步骤复杂/i },
+    { label: "包装问题", regex: /包装|破损|压坏|漏件|box|포장|파손|变形/i },
+    { label: "颜色问题", regex: /颜色|色差|不一致|color|컬러|색상/i },
+    { label: "物流问题", regex: /物流|配送慢|延迟|发货慢|delivery|배송|到货慢/i },
+    { label: "质量问题", regex: /质量|瑕疵|坏了|故障|不耐用|불량|고장|开裂|掉漆/i },
+    { label: "价格问题", regex: /价格|不值|贵|性价比|price|가격/i },
+    { label: "描述不符", regex: /描述不符|介绍不清|说明不清|与描述不同|설명|상세페이지|详情页不清/i },
+    { label: "图文不符", regex: /图文不符|图片不符|实物不一样|photo|image|사진|和图片不一样/i },
+    { label: "退货风险", regex: /退货|退款|换货|return|반품|교환/i },
+  ];
+
+  return rules
+    .map((rule) => {
+      const hits = text.match(new RegExp(rule.regex.source, "gi")) ?? [];
+      return {
+        label: rule.label,
+        count: hits.length,
+        evidence: extractEvidence(text, rule.regex),
+      };
+    })
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count);
+}
+
+function extractEvidence(text: string, regex: RegExp) {
+  const segments = text
+    .split(/\r?\n|[。！？!?.]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const matched = segments.find((segment) => regex.test(segment));
+  if (!matched) return "";
+  return matched.length > 28 ? `${matched.slice(0, 28)}...` : matched;
+}
+
+function extractNegativeKeywords(
+  text: string,
+  matches: Array<{ label: string; count: number; evidence: string }>,
+) {
+  const tokenMatches = text.match(/[\u4e00-\u9fa5A-Za-z]{2,}/g) ?? [];
+
+  return Array.from(
+    new Set([
+      ...matches.map((item) => item.label),
+      ...tokenMatches.filter((token) =>
+        /尺寸|材质|安装|包装|颜色|物流|质量|价格|描述|图片|退货|退款|故障|瑕疵|배송|반품|고장/i.test(token),
+      ),
+    ]),
+  ).slice(0, 12);
+}
+
+function buildPracticalSuggestionsFromCategories(categories: string[]) {
+  const suggestionMap: Record<string, string> = {
+    尺寸问题: "补充尺寸对照图、实物测量图和适配说明，减少买家对大小不符的误判。",
+    材质问题: "把材质、厚度、触感和耐用性写清楚，避免用户对质感产生预期落差。",
+    安装问题: "增加安装步骤图、配件说明和使用视频，降低安装门槛和理解成本。",
+    包装问题: "优化包装保护和到货防损方案，重点减少运输中的破损、漏件和变形。",
+    颜色问题: "补充自然光和实拍图，明确说明色差范围，降低颜色预期偏差。",
+    物流问题: "重新确认发货时效、配送方式和重量体积，避免因物流体验引发差评。",
+    质量问题: "优先回查供应链和抽检标准，再决定是否继续卖或先停样修正。",
+    价格问题: "如果价格相关抱怨频繁，就要重新评估价格带和赠品、规格的价值感。",
+    描述不符: "把详情页描述、参数和实际体验对齐，尤其要明确功能边界和使用场景。",
+    图文不符: "补充真实场景图和细节图，不要让主图、详情页与实物存在明显落差。",
+    退货风险: "优先处理导致退货的核心问题，再决定是否继续推广或转入测试修正。",
+  };
+
+  return categories.map((item) => suggestionMap[item]).filter(Boolean);
+}
+
+function buildRecommendationFromAnalysis(
+  severity: "low" | "medium" | "high",
+  improvementPossible: boolean,
+  topPainPoints: string[],
+  categories: string[],
+) {
+  const focus = topPainPoints[0] ?? categories[0] ?? "差评问题";
+
+  if (severity === "high" && !improvementPossible) {
+    return `${focus} 已经明显影响购买体验，先不要继续放量，优先回查供应链和产品本体问题。`;
+  }
+
+  if (severity === "high") {
+    return `${focus} 属于高优先级问题，建议先做一轮产品或详情页修正，再决定是否继续推进。`;
+  }
+
+  if (improvementPossible && categories.length >= 2) {
+    return `当前差评主要集中在 ${topPainPoints.slice(0, 2).join("、")}，有明确优化入口，适合进入改良测试。`;
+  }
+
+  return `当前差评风险可控，继续补样本观察 ${focus} 是否持续放大，再决定下一步动作。`;
+}
+
+function buildNextActionFromAnalysis(
+  severity: "low" | "medium" | "high",
+  improvementPossible: boolean,
+  topPainPoints: string[],
+  categories: string[],
+) {
+  const focus = topPainPoints[0] ?? categories[0] ?? "差评问题";
+
+  if (severity === "high" && !improvementPossible) {
+    return `先暂停继续推进，围绕“${focus}”补做供应链与产品问题排查。`;
+  }
+
+  if (severity === "high") {
+    return `先用 3-5 条真实差评复核“${focus}”，再补充对应的产品修正方案。`;
+  }
+
+  if (improvementPossible && categories.includes("退货风险")) {
+    return `先优先处理导致退货的“${focus}”，再决定是否转入商品测试库继续验证。`;
+  }
+
+  if (improvementPossible) {
+    return `围绕“${focus}”整理 1 轮改良方案，并继续补充同类差评样本。`;
+  }
+
+  return `继续观察“${focus}”是否持续出现，再判断是否需要升级处理。`;
 }
 
 function deriveIssueCategories(text: string) {

@@ -110,7 +110,7 @@ export function LoginForm({
       ) : null}
 
       <div className="space-y-3">
-        <Button className="h-11 w-full rounded-lg" disabled={loading}>
+        <Button type="submit" className="h-11 w-full rounded-lg" disabled={loading}>
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

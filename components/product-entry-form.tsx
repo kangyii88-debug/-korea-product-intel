@@ -306,7 +306,7 @@ export function ProductEntryForm() {
 
       {message ? <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{message}</p> : null}
       <div className="flex justify-end">
-        <Button disabled={loading}>{loading ? dict.productForm.submitLoading : dict.productForm.submitIdle}</Button>
+        <Button type="submit" disabled={loading}>{loading ? dict.productForm.submitLoading : dict.productForm.submitIdle}</Button>
       </div>
     </form>
   );

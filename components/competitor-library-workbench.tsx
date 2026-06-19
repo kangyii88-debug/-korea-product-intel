@@ -363,7 +363,7 @@ export function CompetitorLibraryWorkbench() {
                 </DetailSection>
 
                 <DetailSection title={t.detail.badReviews}>
-                  <SimpleList items={selected.bad_review_samples} empty={t.common.none} />
+                  <ReviewSampleBoard items={selected.bad_review_samples} empty={t.common.none} badge={t.detail.sampleBadge} />
                 </DetailSection>
 
                 <DetailSection title={t.detail.pain}>
@@ -734,6 +734,86 @@ function SimpleList({ items, empty }: { items: string[]; empty: string }) {
   );
 }
 
+function ReviewSampleBoard({
+  items,
+  empty,
+  badge,
+}: {
+  items: string[];
+  empty: string;
+  badge: string;
+}) {
+  const cards = buildReviewSampleCards(items);
+
+  if (!cards.length) {
+    return <p className="text-sm text-slate-500">{empty}</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {cards.map((card, index) => (
+        <div key={`${card.title}-${card.detail}-${index}`} className="rounded-[18px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+              {card.detail ? <p className="mt-1 text-sm leading-6 text-slate-600">{card.detail}</p> : null}
+            </div>
+            {card.meta ? <StatusBadge tone="neutral">{card.meta}</StatusBadge> : <StatusBadge tone="info">{badge} {index + 1}</StatusBadge>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildReviewSampleCards(items: string[]) {
+  const cleaned = items.map((item) => item.trim()).filter(Boolean);
+  const cards: Array<{ title: string; detail: string; meta: string }> = [];
+  let current: { title: string; detail: string; meta: string } | null = null;
+
+  for (const item of cleaned) {
+    if (!current) {
+      current = { title: item, detail: "", meta: "" };
+      continue;
+    }
+
+    if (looksLikeMeta(item)) {
+      current.meta = current.meta ? `${current.meta} · ${item}` : item;
+      continue;
+    }
+
+    if (!current.detail) {
+      current.detail = item;
+      continue;
+    }
+
+    cards.push(finalizeReviewCard(current));
+    current = { title: item, detail: "", meta: "" };
+  }
+
+  if (current) {
+    cards.push(finalizeReviewCard(current));
+  }
+
+  return cards;
+}
+
+function finalizeReviewCard(card: { title: string; detail: string; meta: string }) {
+  if (!card.detail && card.title.length > 18) {
+    return {
+      title: "评论摘要",
+      detail: card.title,
+      meta: card.meta,
+    };
+  }
+
+  return card;
+}
+
+function looksLikeMeta(value: string) {
+  return /^(\d+%|\d+\+?|\d+\s*명.*|\d+\s*人.*|[0-9.]+\s*점|[0-9.]+\s*分)$/i.test(value.trim());
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -819,6 +899,7 @@ const ZH_COPY = {
     target: "推荐去向",
     sellingPoints: "核心卖点",
     badReviews: "差评样本",
+    sampleBadge: "样本",
     pain: "用户痛点",
     improvements: "改良机会",
     fits: "业务适配判断",
@@ -935,6 +1016,7 @@ const KO_COPY: typeof ZH_COPY = {
     target: "추천 경로",
     sellingPoints: "핵심 판매 포인트",
     badReviews: "부정 리뷰 샘플",
+    sampleBadge: "샘플",
     pain: "사용자 문제점",
     improvements: "개선 기회",
     fits: "비즈니스 적합도",
