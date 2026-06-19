@@ -305,8 +305,7 @@ export function DashboardOpportunityCenter() {
     setImporting(true);
 
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
+      const workbook = await readImportWorkbook(file);
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
 
       if (!firstSheet) {
@@ -316,7 +315,7 @@ export function DashboardOpportunityCenter() {
 
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
       const parsedItems = rows
-        .map((row) => mapImportRowToOpportunity(row))
+        .map((row) => mapImportRowToOpportunitySafe(row))
         .filter((item): item is ProductOpportunityInput => Boolean(item));
 
       if (!parsedItems.length) {
@@ -1993,6 +1992,160 @@ function mapNextActionValue(value: string): OpportunityNextAction {
   if (["准备rg提案", "preparergproposal", "rg제안준비"].includes(normalized)) return "prepare_rg_proposal";
   if (["准备pb提案", "preparepbproposal", "pb제안준비"].includes(normalized)) return "prepare_pb_proposal";
   if (["上架测试", "launchtest", "테스트등록"].includes(normalized)) return "launch_test";
+  return "pause";
+}
+
+async function readImportWorkbook(file: File) {
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    const buffer = await file.arrayBuffer();
+    return XLSX.read(buffer, { type: "array" });
+  }
+
+  const buffer = await file.arrayBuffer();
+  const text = decodeImportCsvBuffer(buffer);
+  return XLSX.read(text, { type: "string", raw: true });
+}
+
+function decodeImportCsvBuffer(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  const utf8Text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  if (!looksLikeBrokenEncoding(utf8Text)) return utf8Text;
+
+  try {
+    const eucKrText = new TextDecoder("euc-kr", { fatal: false }).decode(bytes);
+    if (!looksLikeBrokenEncoding(eucKrText)) return eucKrText;
+  } catch {
+    // Fall back to UTF-8 if this decoder is unavailable.
+  }
+
+  return utf8Text;
+}
+
+function looksLikeBrokenEncoding(value: string) {
+  if (!value) return false;
+  if (value.includes("�")) return true;
+  return ["Ã", "Â", "ì", "ë", "ì¡", "ìƒ", "ë¬", "ì"].some((fragment) => value.includes(fragment));
+}
+
+function mapImportRowToOpportunitySafe(row: Record<string, unknown>): ProductOpportunityInput | null {
+  const title = readImportString(row, ["title", "name", "product_name", "product title", "商品名", "상품명", "제품명"]);
+  if (!title) return null;
+
+  return {
+    ...DEFAULT_FORM,
+    title,
+    sku: readImportString(row, ["sku", "SKU"]),
+    keyword: readImportString(row, ["keyword", "keywords", "商品关键词", "상품키워드", "키워드"]),
+    coupang_url: readImportString(row, ["coupang_url", "coupang link", "link", "url", "Coupang链接", "쿠팡링크", "상품링크"]),
+    image_url: readImportString(row, ["image", "image_url", "image link", "商品图片", "상품이미지", "이미지링크"]),
+    category: mapImportCategory(readImportString(row, ["category", "品类", "카테고리", "분류"])),
+    business_type: mapImportDirection(readImportString(row, ["business_type", "direction", "商品方向", "业务方向", "상품방향"])),
+    price: readImportNumber(row, ["price", "售价", "판매가", "当前售价"]),
+    review_count: readImportNumber(row, ["review_count", "reviews", "评论数", "리뷰수", "상품평수"]),
+    rating: readImportNumber(row, ["rating", "评分", "평점"]),
+    competitor_count: readImportNumber(row, ["competitor_count", "competitors", "竞品数量", "경쟁상품수"]),
+    estimated_purchase_cost: readImportNumber(row, ["purchase_cost", "estimated_purchase_cost", "采购预估价", "예상매입가"]),
+    estimated_shipping_cost: readImportNumber(row, ["shipping_cost", "estimated_shipping_cost", "国际物流费", "국제물류비"]),
+    estimated_local_delivery_cost: readImportNumber(row, ["local_delivery_cost", "estimated_local_delivery_cost", "韩国本地物流费", "로컬배송비"]),
+    platform_fee_rate: readImportNumber(row, ["platform_fee_rate", "fee_rate", "平台手续费", "수수료"]),
+    estimated_ad_cost: readImportNumber(row, ["ad_cost", "estimated_ad_cost", "预计广告费", "광고비"]),
+    estimated_sale_price: readImportNumber(row, ["estimated_sale_price", "sale_price", "预计售价", "目标售价", "예상판매가"]),
+    market_heat: mapImportLevel(readImportString(row, ["market_heat", "市场热度", "시장열도"]), "medium"),
+    competition_level: mapImportLevel(readImportString(row, ["competition_level", "竞争强度", "경쟁강도"]), "medium"),
+    kc_risk: mapImportLevel(readImportString(row, ["kc_risk", "KC风险", "kc리스크"]), "low"),
+    volume_weight_risk: mapImportLevel(readImportString(row, ["volume_weight_risk", "体积重量风险", "부피중량리스크"]), "low"),
+    return_risk: mapImportLevel(readImportString(row, ["return_risk", "退货风险", "반품리스크"]), "low"),
+    negative_review_risk: mapImportLevel(readImportString(row, ["negative_review_risk", "差评风险", "부정리뷰리스크"]), "low"),
+    price_war_risk: mapImportLevel(readImportString(row, ["price_war_risk", "价格战风险", "가격전리스크"]), "low"),
+    supply_chain_risk: mapImportLevel(readImportString(row, ["supply_chain_risk", "供应链风险", "공급망리스크"]), "low"),
+    notes: readImportString(row, ["notes", "remark", "备注", "메모"]),
+    status: mapImportStatus(readImportString(row, ["status", "状态", "상품상태"])),
+    next_action: mapImportNextAction(readImportString(row, ["next_action", "下一步动作", "다음액션"])),
+    demand_stability: readImportString(row, ["demand_stability", "需求稳定性", "수요안정성"]),
+    seasonality: readImportString(row, ["seasonality", "季节性", "계절성"]),
+    long_term_fit: readImportBoolean(row, ["long_term_fit", "是否适合长期做", "장기적합"]),
+    short_term_test_fit: readImportBoolean(row, ["short_term_test_fit", "是否适合短期测试", "단기테스트적합"], true),
+    competitor_price_range: readImportString(row, ["competitor_price_range", "竞品价格区间", "경쟁가격대"]),
+    top_seller_count: readImportNumber(row, ["top_seller_count", "头部卖家数量", "상위판매자수"]),
+    review_issue_summary: readImportString(row, ["review_issue_summary", "评论集中问题", "리뷰집중문제"]),
+    negative_review_keywords: readImportString(row, ["negative_review_keywords", "差评关键词", "부정리뷰키워드"]),
+    improvement_points: readImportString(row, ["improvement_points", "可改进点", "개선포인트"]),
+  };
+}
+
+function readImportString(row: Record<string, unknown>, candidates: string[]) {
+  for (const candidate of candidates) {
+    const entry = Object.entries(row).find(([key]) => normalizeImportHeader(key) === normalizeImportHeader(candidate));
+    if (!entry) continue;
+    const value = String(entry[1] ?? "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function readImportNumber(row: Record<string, unknown>, candidates: string[]) {
+  const raw = readImportString(row, candidates);
+  if (!raw) return 0;
+  const parsed = Number(raw.replace(/,/g, "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function readImportBoolean(row: Record<string, unknown>, candidates: string[], fallback = false) {
+  const raw = readImportString(row, candidates).toLowerCase();
+  if (!raw) return fallback;
+  return ["true", "1", "yes", "y", "是", "예", "네"].includes(raw);
+}
+
+function normalizeImportHeader(value: string) {
+  return value.toLowerCase().replace(/\s+/g, "").replace(/[_-]/g, "");
+}
+
+function mapImportCategory(value: string): OpportunityCategory {
+  const normalized = value.trim().toLowerCase();
+  if (["windowcurtain", "curtain", "窗帘", "커튼"].includes(normalized)) return "window_curtain";
+  if (["bathroomcurtain", "showercurtain", "浴室帘", "浴帘", "샤워커튼"].includes(normalized)) return "bathroom_curtain";
+  if (["household", "living", "生活用品", "생활용품"].includes(normalized)) return "household";
+  if (["kids", "children", "儿童用品", "아동용품"].includes(normalized)) return "kids";
+  if (["outdoor", "户外用品", "아웃도어"].includes(normalized)) return "outdoor";
+  return "other";
+}
+
+function mapImportDirection(value: string): OpportunityDirection {
+  const normalized = value.trim().toLowerCase();
+  if (["rocketgrowth", "rocket growth", "rg"].includes(normalized)) return "rocket_growth";
+  if (["pb", "pbsupply", "pb供应", "pb공급"].includes(normalized)) return "pb_supply";
+  if (["ownbrand", "自有品牌", "자체브랜드"].includes(normalized)) return "own_brand";
+  return "general";
+}
+
+function mapImportLevel(value: string, fallback: OpportunityLevel): OpportunityLevel {
+  const normalized = value.trim().toLowerCase();
+  if (["high", "高", "높음"].includes(normalized)) return "high";
+  if (["medium", "mid", "中", "중간", "보통"].includes(normalized)) return "medium";
+  if (["low", "低", "낮음"].includes(normalized)) return "low";
+  return fallback;
+}
+
+function mapImportStatus(value: string): OpportunityStatus {
+  const normalized = value.trim().toLowerCase();
+  if (["pendinganalysis", "analysispending", "待分析", "분석대기"].includes(normalized)) return "pending_analysis";
+  if (["testable", "可测试", "테스트가능"].includes(normalized)) return "testable";
+  if (["highpotential", "高潜力", "고잠재력"].includes(normalized)) return "high_potential";
+  if (["paused", "暂缓", "보류"].includes(normalized)) return "paused";
+  if (["dropped", "放弃", "淘汰", "제외", "폐기"].includes(normalized)) return "dropped";
+  if (["inexecution", "已进入执行", "실행진입"].includes(normalized)) return "in_execution";
+  return "pending_analysis";
+}
+
+function mapImportNextAction(value: string): OpportunityNextAction {
+  const normalized = value.trim().toLowerCase();
+  if (["collectcompetitors", "继续采集竞品", "경쟁상품수집"].includes(normalized)) return "collect_competitors";
+  if (["calculateprofit", "计算利润", "수익계산"].includes(normalized)) return "calculate_profit";
+  if (["findsupplier", "找供应商", "공급사찾기"].includes(normalized)) return "find_supplier";
+  if (["applysample", "申请样品", "샘플요청"].includes(normalized)) return "apply_sample";
+  if (["preparergproposal", "准备rg提案", "rg제안준비"].includes(normalized)) return "prepare_rg_proposal";
+  if (["preparepbproposal", "准备pb提案", "pb제안준비"].includes(normalized)) return "prepare_pb_proposal";
+  if (["launchtest", "上架测试", "테스트등록"].includes(normalized)) return "launch_test";
   return "pause";
 }
 
